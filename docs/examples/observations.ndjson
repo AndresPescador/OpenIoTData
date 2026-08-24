@@ -1,0 +1,2 @@
+{"observed_at":"2026-08-23T15:30:00Z","data":{"humidity":68.4,"temperature_c":19.7},"sensor_id":"HUM-BOG-01","location":{"type":"Point","coordinates":[-74.0721,4.711]},"metadata":{"firmware":"1.4.2"}}
+{"observed_at":"2026-08-23T15:31:00Z","data":{"humidity":68.7,"temperature_c":19.8},"sensor_id":"HUM-BOG-01","location":{"type":"Point","coordinates":[-74.0721,4.711]}}

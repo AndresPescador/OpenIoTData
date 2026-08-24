@@ -1,0 +1,350 @@
+name: openiotdata
+
+x-backend-environment: &backend-environment
+  APP_ENV: development
+  AUTO_CREATE_DB: "false"
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-openiotdata}:${POSTGRES_PASSWORD:-openiotdata-local-only}@postgres:5432/${POSTGRES_DB:-openiotdata}
+  REDIS_URL: redis://redis:6379/0
+  STORAGE_BACKEND: s3
+  S3_ENDPOINT_URL: http://minio:9000
+  S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-http://localhost:9000}
+  S3_ACCESS_KEY: ${MINIO_ROOT_USER:-openiotdata}
+  S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-openiotdata-minio-local-only}
+  S3_BUCKET: ${S3_BUCKET:-openiotdata}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-http://openiotdata.localhost:8080/auth/realms/openiotdata}
+  OIDC_AUDIENCE: ${OIDC_AUDIENCE:-openiotdata-api}
+  DEV_AUTH_BYPASS: "${DEV_AUTH_BYPASS:-false}"
+  TOKEN_HASH_PEPPER: ${TOKEN_HASH_PEPPER:-openiotdata-token-pepper-local-only}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080,http://openiotdata.localhost:8080}
+  MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-1073741824}
+  MAX_ACCOUNT_BYTES: ${MAX_ACCOUNT_BYTES:-21474836480}
+  MAX_BATCH_RECORDS: ${MAX_BATCH_RECORDS:-10000}
+  MAX_BATCH_BYTES: ${MAX_BATCH_BYTES:-10485760}
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+  CELERY_TASK_ALWAYS_EAGER: "false"
+  CLAMAV_HOST: clamav
+  CLAMAV_PORT: "3310"
+  CLAMAV_REQUIRED: "true"
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+x-app-security: &app-security
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-openiotdata}
+      POSTGRES_USER: ${POSTGRES_USER:-openiotdata}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openiotdata-local-only}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    shm_size: 256mb
+    mem_limit: 1g
+    cpus: 1.5
+    networks:
+      - data
+      - diagnostics
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 384m
+    cpus: 0.5
+    networks:
+      - data
+      - diagnostics
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-openiotdata}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-openiotdata-minio-local-only}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_API_CORS_ALLOW_ORIGIN:-http://localhost:3000,http://localhost:8080,http://openiotdata.localhost:8080}
+    ports:
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+    cpus: 1.0
+    networks:
+      - data
+      # Una red no interna es necesaria para que Docker publique las URLs
+      # prefirmadas en 127.0.0.1 durante el desarrollo local.
+      - diagnostics
+
+  minio-init:
+    image: minio/mc:latest
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-openiotdata}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-openiotdata-minio-local-only}
+      S3_BUCKET: ${S3_BUCKET:-openiotdata}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        /usr/bin/mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" &&
+        /usr/bin/mc mb --ignore-existing "local/$${S3_BUCKET}"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.6.2
+    restart: unless-stopped
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin-local-only}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-openiotdata}
+      KC_DB_SCHEMA: keycloak
+      KC_DB_USERNAME: ${POSTGRES_USER:-openiotdata}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-openiotdata-local-only}
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HTTP_MANAGEMENT_RELATIVE_PATH: /management
+      KC_HOSTNAME: ${PUBLIC_BASE_URL:-http://openiotdata.localhost:8080}/auth
+      KC_PROXY_HEADERS: xforwarded
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-8081}:8080"
+    volumes:
+      - ./infra/keycloak/openiotdata-realm.json:/opt/keycloak/data/import/openiotdata-realm.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000; printf 'GET /management/health/ready HTTP/1.0\\r\\n\\r\\n' >&3; grep -q '200 OK' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: 1.0
+    networks:
+      - app
+      - data
+
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    environment:
+      # Debe ser al menos MAX_UPLOAD_BYTES para escaneo INSTREAM fail-closed.
+      CLAMD_CONF_StreamMaxLength: ${CLAMAV_STREAM_MAX_LENGTH:-1G}
+    ports:
+      - "127.0.0.1:${CLAMAV_PORT:-3310}:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "printf 'PING\\n' | nc -w 2 127.0.0.1 3310 | grep -q PONG"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 5m
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 3g
+    cpus: 2.0
+    networks:
+      - data
+      - updates
+
+  api:
+    <<: *app-security
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      <<: *backend-environment
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    mem_limit: 1g
+    cpus: 1.5
+    networks:
+      - app
+      - data
+
+  worker:
+    <<: *app-security
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info", "--concurrency=${CELERY_CONCURRENCY:-2}"]
+    environment:
+      <<: *backend-environment
+    depends_on:
+      api:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.worker.celery_app inspect ping --timeout 5 | grep -q pong"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp:size=2g,mode=1777
+    mem_limit: 2g
+    cpus: 2.0
+    networks:
+      - data
+
+  frontend:
+    <<: *app-security
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: /api/v1
+      NEXT_PUBLIC_DEMO_MODE: "${NEXT_PUBLIC_DEMO_MODE:-false}"
+      INTERNAL_API_URL: http://api:8000/api/v1
+      NODE_ENV: production
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+      - /app/.next/cache:size=256m,mode=0755
+    mem_limit: 1g
+    cpus: 1.5
+    networks:
+      - app
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    volumes:
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      api:
+        condition: service_started
+      frontend:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/nginx-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=64m
+      - /var/run:size=8m
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    cpus: 0.5
+    networks:
+      app:
+        aliases:
+          - openiotdata.localhost
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  clamav_data:
+
+networks:
+  app:
+    driver: bridge
+  data:
+    driver: bridge
+    internal: true
+  updates:
+    driver: bridge
+  # Exclusiva del perfil local: habilita los puertos administrativos ligados
+  # a 127.0.0.1. Debe eliminarse junto con esos puertos en producción.
+  diagnostics:
+    driver: bridge

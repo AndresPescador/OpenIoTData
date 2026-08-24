@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend · lint y tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - name: Instalar dependencias
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements-dev.txt
+      - name: Ruff
+        run: python -m ruff check .
+      - name: Pytest
+        env:
+          APP_ENV: test
+          DATABASE_URL: sqlite+aiosqlite:///./ci.db
+          STORAGE_BACKEND: local
+          LOCAL_STORAGE_PATH: /tmp/openiotdata-ci
+          CELERY_TASK_ALWAYS_EAGER: "true"
+          DEV_AUTH_BYPASS: "true"
+        run: python -m pytest --cov=app --cov-report=term-missing
+
+  frontend:
+    name: Frontend · lint, tests y build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Instalar dependencias
+        run: if [[ -f package-lock.json ]]; then npm ci; else npm install --no-audit --no-fund; fi
+      - name: Lint
+        run: npm run lint
+      - name: Tipos
+        run: npm run typecheck
+      - name: Tests
+        run: npm run test
+      - name: Build
+        env:
+          NEXT_PUBLIC_API_URL: /api/v1
+          NEXT_PUBLIC_DEMO_MODE: "false"
+        run: npm run build
+
+  compose:
+    name: Infraestructura · configuración
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar Docker Compose
+        run: docker compose --env-file .env.example config --quiet
+      - name: Validar JSON de Keycloak
+        run: python -m json.tool infra/keycloak/openiotdata-realm.json >/dev/null
+      - name: Validar scripts shell
+        run: bash -n scripts/*.sh

@@ -1,0 +1,27 @@
+{
+  "records": [
+    {
+      "observed_at": "2026-08-20T12:00:00Z",
+      "sensor_id": "DEMO-USAQUEN-01",
+      "location": {"type": "Point", "coordinates": [-74.031, 4.707]},
+      "data": {
+        "leq_dbfs": -35.2,
+        "dominant_frequency_hz": 512.0,
+        "interaural_correlation": 0.81
+      },
+      "metadata": {"source": "illustrative"}
+    },
+    {
+      "observed_at": "2026-08-20T12:02:00Z",
+      "sensor_id": "DEMO-USAQUEN-01",
+      "location": {"type": "Point", "coordinates": [-74.031, 4.707]},
+      "data": {
+        "leq_dbfs": -33.7,
+        "dominant_frequency_hz": 768.0,
+        "interaural_correlation": 0.76
+      },
+      "metadata": {"source": "illustrative"}
+    }
+  ]
+}
+
