@@ -64,5 +64,9 @@ ruff check app alembic tests
 pytest -q
 ```
 
+La matriz de pruebas cubre los seis formatos anunciados (CSV, TSV, JSON, NDJSON,
+Parquet y GeoJSON). El recorrido de navegador y la prueba contra ClamAV/MinIO se
+ejecutan desde el repositorio raíz con `make e2e-ui` y `make e2e`.
+
 La migración inicial es explícita y se verifica con `alembic upgrade head` y
 `alembic downgrade base` en SQLite; despliegue usa PostgreSQL/PostGIS.

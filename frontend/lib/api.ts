@@ -13,7 +13,9 @@ import type {
 
 const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 const API_URL = configuredApiUrl ?? "/api/v1";
-const allowDemoFallback = process.env.NEXT_PUBLIC_DEMO_MODE !== "false";
+// Demo data is an explicit development mode. A real API failure must remain
+// visible in the normal application so it cannot masquerade as success.
+const allowDemoFallback = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 const demoNotice = "Datos ilustrativos: el backend no está disponible o el modo demostración está activo.";
 
 interface BackendSpatialCoverage {
@@ -535,7 +537,10 @@ export async function publishDraft({ remote, payload }: { remote: RemoteDraft; p
       body: JSON.stringify({ title: payload.title, description: payload.description, topic: payload.topic, license: payload.license, tags: payload.tags.split(",").map((tag) => tag.trim()).filter(Boolean) }),
     });
     const hasCoordinates = Boolean(payload.latitudeField && payload.longitudeField);
-    if (payload.timeField || hasCoordinates) {
+    const hasSemanticMapping = Boolean(
+      payload.timeField || payload.sensorField || payload.measureField || hasCoordinates,
+    );
+    if (hasSemanticMapping) {
       await request<void>(`/datasets/${remote.id}/versions/${remote.versionId}/mapping`, {
         method: "PUT",
         body: JSON.stringify({
@@ -543,8 +548,8 @@ export async function publishDraft({ remote, payload }: { remote: RemoteDraft; p
           observed_at_field: payload.timeField || null,
           latitude_field: hasCoordinates ? payload.latitudeField : null,
           longitude_field: hasCoordinates ? payload.longitudeField : null,
-          sensor_id_field: null,
-          variable_units: {},
+          sensor_id_field: payload.sensorField || null,
+          variable_units: payload.measureField ? { [payload.measureField]: "" } : {},
           crs: "EPSG:4326",
         }),
       });

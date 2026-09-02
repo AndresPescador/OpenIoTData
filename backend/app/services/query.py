@@ -111,6 +111,7 @@ def _execute_points(
     sensor_field: str | None,
     observed_at_field: str | None,
     nested_location: bool,
+    nested_location_field: str,
     bbox: tuple[float, float, float, float] | None,
     limit: int,
 ) -> list[dict[str, Any]]:
@@ -120,10 +121,17 @@ def _execute_points(
     if not requested.issubset(allowed_fields):
         return []
     if nested_location:
-        if "location" not in allowed_fields:
+        # Nested locations are currently restricted to fields produced by
+        # trusted normalizers (``location`` for REST batches and ``geometry``
+        # for GeoJSON).  Keep the allow-list check before interpolating the
+        # identifier into DuckDB SQL.
+        if nested_location_field not in allowed_fields:
             return []
-        longitude_expression = 'TRY_CAST("location"."coordinates"[1] AS DOUBLE)'
-        latitude_expression = 'TRY_CAST("location"."coordinates"[2] AS DOUBLE)'
+        quoted_location = quote_identifier(nested_location_field)
+        longitude_expression = (
+            f'TRY_CAST({quoted_location}."coordinates"[1] AS DOUBLE)'
+        )
+        latitude_expression = f'TRY_CAST({quoted_location}."coordinates"[2] AS DOUBLE)'
     else:
         if not latitude_field or not longitude_field:
             return []
@@ -179,6 +187,7 @@ async def execute_points(
     sensor_field: str | None = None,
     observed_at_field: str | None = None,
     nested_location: bool = False,
+    nested_location_field: str = "location",
     bbox: tuple[float, float, float, float] | None = None,
     limit: int = 1_000,
 ) -> list[dict[str, Any]]:
@@ -192,6 +201,7 @@ async def execute_points(
             sensor_field,
             observed_at_field,
             nested_location,
+            nested_location_field,
             bbox,
             limit,
         )

@@ -101,4 +101,13 @@ describe("adaptadores del API", () => {
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: "POST" });
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({ order_by: "observed_at", descending: false });
   });
+
+  it("propaga un fallo real de la API cuando el modo demo está desactivado", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.test/api/v1");
+    vi.stubEnv("NEXT_PUBLIC_DEMO_MODE", "false");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: "API caída" }), { status: 503, headers: { "Content-Type": "application/json" } })));
+    const { getCatalog } = await import("@/lib/api");
+
+    await expect(getCatalog()).rejects.toThrow("API caída");
+  });
 });

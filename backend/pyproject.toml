@@ -42,6 +42,11 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-q"
 
+[tool.coverage.run]
+# SQLAlchemy's async driver switches through greenlets; enabling its coverage
+# context prevents resumed endpoint bodies from being reported as unexecuted.
+concurrency = ["greenlet"]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100

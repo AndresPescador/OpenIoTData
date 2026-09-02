@@ -24,6 +24,8 @@ const schema = z.object({
   resourceName: z.string().min(1, "Selecciona un archivo compatible."),
   resourceFormat: z.string().min(1, "Indica el formato del recurso."),
   timeField: z.string(),
+  sensorField: z.string(),
+  measureField: z.string().min(1, "Selecciona el campo numérico que representa la medida."),
   latitudeField: z.string(),
   longitudeField: z.string(),
 }).superRefine((value, context) => {
@@ -45,6 +47,8 @@ const defaults: DraftPayload = {
   resourceName: "",
   resourceFormat: "",
   timeField: "observed_at",
+  sensorField: "sensor_id",
+  measureField: "value",
   latitudeField: "latitude",
   longitudeField: "longitude",
 };
@@ -61,7 +65,7 @@ const fieldsByStep: Array<Array<keyof DraftPayload>> = [
   ["title", "description", "topic"],
   ["resourceName", "resourceFormat"],
   [],
-  ["timeField", "latitudeField", "longitudeField"],
+  ["timeField", "sensorField", "measureField", "latitudeField", "longitudeField"],
   ["license"],
 ];
 
@@ -78,7 +82,7 @@ export function PublishWizard() {
   const previousStepRef = useRef(step);
   const auth = useAuth();
   const queryClient = useQueryClient();
-  const demoEnabled = process.env.NEXT_PUBLIC_DEMO_MODE !== "false";
+  const demoEnabled = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
   const form = useForm<DraftPayload>({ resolver: zodResolver(schema), defaultValues: defaults, mode: "onBlur" });
   const values = form.watch();
   const uploadMutation = useMutation({ mutationFn: createDraft });
@@ -125,6 +129,8 @@ export function PublishWizard() {
     const fields = managedQuery.data?.data.dataset.schema;
     if (!fields?.length) return;
     form.setValue("timeField", fields.find((field) => field.semantic === "time")?.name ?? "");
+    form.setValue("sensorField", fields.find((field) => field.semantic === "sensor")?.name ?? "");
+    form.setValue("measureField", fields.find((field) => field.semantic === "measure")?.name ?? fields.find((field) => ["number", "integer"].includes(field.type))?.name ?? "");
     form.setValue("latitudeField", fields.find((field) => field.semantic === "latitude")?.name ?? "");
     form.setValue("longitudeField", fields.find((field) => field.semantic === "longitude")?.name ?? "");
   }, [form, managedQuery.data]);
@@ -195,8 +201,14 @@ export function PublishWizard() {
         setStep(1);
         return;
       }
-      const result = await publishMutation.mutateAsync({ remote: remoteDraft, payload });
-      setPublished({ ...result.data, notice: result.meta.notice });
+      try {
+        const result = await publishMutation.mutateAsync({ remote: remoteDraft, payload });
+        setPublished({ ...result.data, notice: result.meta.notice });
+      } catch {
+        // React Query retains the failure for the alert and retry action below.
+        // Keep the submit promise resolved so browser console/error boundaries
+        // do not turn a recoverable API failure into an unhandled rejection.
+      }
     },
     () => errorSummaryRef.current?.focus(),
   );
@@ -233,7 +245,10 @@ export function PublishWizard() {
         <ShieldCheck aria-hidden="true" size={42} />
         <h1>Inicia sesión para publicar</h1>
         <p>La consulta es pública. Para preservar procedencia, cuotas y auditoría, cada publicación necesita una identidad verificada por OIDC.</p>
-        <Button onClick={() => auth.login()}>Ingresar con OpenIoTData</Button>
+        <div className="auth-required__actions">
+          <Button onClick={() => auth.login()}>Ingresar con OpenIoTData</Button>
+          <Button variant="secondary" onClick={() => auth.register()}>Crear cuenta</Button>
+        </div>
       </main>
     );
   }
@@ -298,7 +313,7 @@ export function PublishWizard() {
         {step === 3 ? (
           <fieldset className="wizard-panel" ref={wizardPanelRef} tabIndex={-1}><legend>Prepara tiempo y ubicación</legend><p className="panel-intro">Estos valores se aplicarán al recurso procesado. Confirma que las columnas elegidas contienen los datos esperados.</p>
             <div className="mapping-grid">
-              <div className="mapping-group"><h2>Tiempo</h2><div className="form-field"><label htmlFor="timeField">Campo de observación</label><select id="timeField" {...form.register("timeField")}><option value="">No mapear</option>{inferredFields.map((field) => <option key={field.name} value={field.name}>{field.name} · {field.type}</option>)}</select></div></div>
+              <div className="mapping-group"><h2>Semántica</h2><div className="form-field"><label htmlFor="timeField">Campo de observación</label><select id="timeField" {...form.register("timeField")}><option value="">No mapear</option>{inferredFields.map((field) => <option key={field.name} value={field.name}>{field.name} · {field.type}</option>)}</select></div><div className="form-field"><label htmlFor="measureField">Campo de medida <span aria-hidden="true">*</span></label><select id="measureField" required aria-required="true" {...form.register("measureField")} aria-invalid={Boolean(form.formState.errors.measureField)} aria-describedby={form.formState.errors.measureField ? "measure-field-error" : undefined}><option value="">Seleccionar campo numérico</option>{inferredFields.filter((field) => ["number", "integer"].includes(field.type)).map((field) => <option key={field.name} value={field.name}>{field.name} · {field.type}</option>)}</select>{form.formState.errors.measureField ? <p className="field-error" id="measure-field-error" role="alert">{form.formState.errors.measureField.message}</p> : null}</div><div className="form-field"><label htmlFor="sensorField">Identificador de sensor</label><select id="sensorField" {...form.register("sensorField")}><option value="">No mapear</option>{inferredFields.map((field) => <option key={field.name} value={field.name}>{field.name} · {field.type}</option>)}</select></div></div>
               <div className="mapping-group"><h2>Geografía · EPSG:4326</h2><div className="form-row"><div className="form-field"><label htmlFor="latitudeField">Latitud</label><select id="latitudeField" {...form.register("latitudeField")} aria-invalid={Boolean(form.formState.errors.latitudeField)} aria-describedby={form.formState.errors.latitudeField ? "geography-privacy-note latitude-error" : "geography-privacy-note"}><option value="">No mapear</option>{inferredFields.map((field) => <option key={field.name} value={field.name}>{field.name}</option>)}</select>{form.formState.errors.latitudeField ? <p id="latitude-error" role="alert">{form.formState.errors.latitudeField.message}</p> : null}</div><div className="form-field"><label htmlFor="longitudeField">Longitud</label><select id="longitudeField" {...form.register("longitudeField")} aria-invalid={Boolean(form.formState.errors.longitudeField)} aria-describedby={form.formState.errors.longitudeField ? "geography-privacy-note longitude-error" : "geography-privacy-note"}><option value="">No mapear</option>{inferredFields.map((field) => <option key={field.name} value={field.name}>{field.name}</option>)}</select>{form.formState.errors.longitudeField ? <p id="longitude-error" role="alert">{form.formState.errors.longitudeField.message}</p> : null}</div></div><div className="inline-warning" id="geography-privacy-note" role="note"><strong>Privacidad geográfica</strong><p>En esta versión, las coordenadas mapeadas se publican con la precisión que contiene el archivo. Omite el mapeo o reduce la precisión en el archivo antes de cargarlo si la ubicación es sensible.</p></div></div>
             </div>
           </fieldset>
@@ -310,12 +325,12 @@ export function PublishWizard() {
               {[{ id: "CC BY 4.0", copy: "Reutilización con atribución" }, { id: "CC0 1.0", copy: "Dedicación al dominio público" }, { id: "ODC BY 1.0", copy: "Base de datos con atribución" }, { id: "ODbL 1.0", copy: "Base de datos con compartir igual" }].map((license) => <label key={license.id} className={cn(values.license === license.id && "is-selected")}><input type="radio" required value={license.id} {...form.register("license")} /><span><strong>{license.id}</strong><small>{license.copy}</small></span></label>)}
             </div>
             {form.formState.errors.license ? <p className="field-error" id="license-error" role="alert">{form.formState.errors.license.message}</p> : null}
-            <div className="review-sheet"><h2>Resumen del borrador</h2><dl><div><dt>Título</dt><dd>{values.title || "Pendiente"}</dd></div><div><dt>Recurso procesado</dt><dd>{reviewedResourceName || "Pendiente"}</dd></div><div><dt>SHA-256</dt><dd><code>{reviewedResourceChecksum || "Pendiente"}</code></dd></div><div><dt>Tema</dt><dd>{values.topic || "Pendiente"}</dd></div><div><dt>Tiempo</dt><dd>{values.timeField || "Sin mapear"}</dd></div><div><dt>Ubicación</dt><dd>{values.latitudeField && values.longitudeField ? `${values.latitudeField} / ${values.longitudeField} · precisión original` : "Sin mapear"}</dd></div><div><dt>Licencia</dt><dd>{values.license || "Pendiente"}</dd></div></dl></div>
+            <div className="review-sheet"><h2>Resumen del borrador</h2><dl><div><dt>Título</dt><dd>{values.title || "Pendiente"}</dd></div><div><dt>Recurso procesado</dt><dd>{reviewedResourceName || "Pendiente"}</dd></div><div><dt>SHA-256</dt><dd><code>{reviewedResourceChecksum || "Pendiente"}</code></dd></div><div><dt>Tema</dt><dd>{values.topic || "Pendiente"}</dd></div><div><dt>Medida</dt><dd>{values.measureField || "Pendiente"}</dd></div><div><dt>Tiempo</dt><dd>{values.timeField || "Sin mapear"}</dd></div><div><dt>Ubicación</dt><dd>{values.latitudeField && values.longitudeField ? `${values.latitudeField} / ${values.longitudeField} · precisión original` : "Sin mapear"}</dd></div><div><dt>Licencia</dt><dd>{values.license || "Pendiente"}</dd></div></dl></div>
             <label className="publication-confirm"><input type="checkbox" required aria-required="true" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /><span>Confirmo que tengo autorización para publicar estos datos, revisé posibles datos personales y entiendo que las coordenadas mapeadas conservarán la precisión del archivo.</span></label>
           </fieldset>
         ) : null}
 
-        {operationError ? <div className="submission-error" role="alert"><strong>No pudimos completar la operación.</strong><span>{operationError instanceof Error ? operationError.message : "Inténtalo de nuevo."}</span></div> : null}
+        {operationError ? <div className="submission-error" role="alert"><strong>No pudimos completar la operación.</strong><span>{operationError instanceof Error ? operationError.message : "Inténtalo de nuevo."}</span>{uploadMutation.error ? <Button type="button" size="small" variant="secondary" onClick={() => void next()}>Reintentar carga</Button> : null}{publishMutation.error ? <Button type="button" size="small" variant="secondary" onClick={() => void submit()}>Reintentar publicación</Button> : null}</div> : null}
 
         <div className="wizard-actions">
           <Button variant="quiet" disabled={step === 0 || uploadMutation.isPending || publishMutation.isPending} onClick={() => setStep((current) => Math.max(0, current - 1))}><ArrowLeft aria-hidden="true" size={18} /> Atrás</Button>

@@ -40,7 +40,7 @@ jobs:
           LOCAL_STORAGE_PATH: /tmp/openiotdata-ci
           CELERY_TASK_ALWAYS_EAGER: "true"
           DEV_AUTH_BYPASS: "true"
-        run: python -m pytest --cov=app --cov-report=term-missing
+        run: python -m pytest --cov=app --cov-report=term-missing --cov-fail-under=75
 
   frontend:
     name: Frontend · lint, tests y build

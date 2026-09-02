@@ -526,7 +526,8 @@ async def dataset_record_points(
         if not resource.normalized_key or not resource.schema_profile:
             continue
         mapping = mappings.get(resource.id)
-        nested_location = resource.kind == "rest_batch"
+        nested_location = resource.kind == "rest_batch" or resource.format == "geojson"
+        nested_location_field = "geometry" if resource.format == "geojson" else "location"
         if not nested_location and not (
             mapping and mapping.latitude_field and mapping.longitude_field
         ):
@@ -545,6 +546,7 @@ async def dataset_record_points(
                 if (mapping and mapping.observed_at_field) or "observed_at" in known_fields
                 else None,
                 nested_location=nested_location,
+                nested_location_field=nested_location_field,
                 bbox=parsed_bbox,
                 limit=limit - len(features),
             )

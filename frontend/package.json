@@ -4,24 +4,26 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:demo": "NEXT_PUBLIC_DEMO_MODE=true NEXT_PUBLIC_API_URL= next dev",
     "build": "next build --webpack && node scripts/inject-direction-contract.mjs",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "e2e": "playwright test"
   },
   "dependencies": {
-    "@fontsource/ibm-plex-mono": "^5.2.6",
     "@fontsource-variable/manrope": "^5.2.6",
+    "@fontsource/ibm-plex-mono": "^5.2.6",
     "@hookform/resolvers": "^5.2.1",
     "@tanstack/react-query": "^5.85.5",
     "@tanstack/react-table": "^8.21.3",
     "clsx": "^2.1.1",
     "echarts": "^6.0.0",
+    "keycloak-js": "^26.2.0",
     "lucide-react": "^0.542.0",
     "maplibre-gl": "^5.7.1",
-    "keycloak-js": "^26.2.0",
     "next": "16.3.2",
     "react": "19.1.1",
     "react-dom": "19.1.1",
@@ -30,6 +32,7 @@
     "zod": "^4.1.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",

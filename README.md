@@ -22,6 +22,9 @@ make bootstrap
 `make bootstrap` valida Compose, construye las imágenes, espera los healthchecks, aplica las migraciones desde el arranque de `api`, ejecuta el seed idempotente y verifica los endpoints. La primera ejecución puede tardar varios minutos mientras ClamAV descarga o carga sus firmas.
 
 Abra [http://openiotdata.localhost:8080](http://openiotdata.localhost:8080). Si el navegador no resuelve subdominios `.localhost`, use [http://localhost:8080](http://localhost:8080); Keycloak seguirá anunciando el issuer canónico `openiotdata.localhost`.
+Para el registro/inicio de sesión del E2E, mantenga el hostname canónico (o defina
+`PLAYWRIGHT_BASE_URL` a una URL que comparta ese origen con Keycloak), ya que las cookies
+OIDC son same-origin.
 
 Comandos habituales:
 
@@ -31,6 +34,8 @@ make wait     # esperar servicios saludables
 make seed     # recargar datos ilustrativos, sin duplicarlos
 make check    # comprobar Compose y endpoints
 make e2e      # publicar/consultar/descargar un dataset temporal y archivarlo
+make e2e-ui   # probar el recorrido crítico desde Chromium y móvil
+make verify   # lint, tipos, pruebas, build y configuración
 make logs     # seguir logs
 make down     # detener sin borrar volúmenes
 make backup   # exportar PostgreSQL y objetos
@@ -139,6 +144,17 @@ npm install
 NEXT_PUBLIC_API_URL=/api/v1 NEXT_PUBLIC_DEMO_MODE=false npm run dev
 ```
 
+El modo demo está separado del recorrido real. Para abrir el frontend sin API y con
+datos ilustrativos, use `cd frontend && npm run dev:demo`; nunca se debe usar ese modo
+para verificar la disponibilidad del backend. En el flujo normal, `NEXT_PUBLIC_DEMO_MODE`
+debe permanecer en `false` y los errores de la API se muestran al usuario.
+Si se activa en Compose para una comprobación aislada, reconstruya `frontend` para que
+la variable pública quede incluida en el bundle (`NEXT_PUBLIC_DEMO_MODE=true docker compose build frontend`).
+
+La pantalla de inicio de sesión de Keycloak permite crear una cuenta local mediante
+“Crear cuenta”. El registro está abierto en la configuración de desarrollo; las cuentas
+locales pueden publicar datasets y el catálogo sigue siendo anónimo para lectura.
+
 Para el proxy de mismo origen, use la pila Compose. El frontend compilado recibe `NEXT_PUBLIC_API_URL=/api/v1`; Nginx conserva la URI al enviarla a FastAPI, por lo que nunca se duplica `/api/v1`.
 
 Pruebas locales:
@@ -146,9 +162,15 @@ Pruebas locales:
 ```bash
 make lint
 make test
+make verify
+make e2e-ui
 docker compose config --quiet
 bash -n scripts/*.sh
 ```
+
+`make e2e-ui` necesita la pila levantada con `make bootstrap` y los navegadores de
+Playwright instalados (`cd frontend && npx playwright install chromium`). La pila local
+reserva aproximadamente 10–12 GB de RAM, principalmente por ClamAV.
 
 ## Seguridad y gobierno de datos
 
@@ -205,6 +227,11 @@ La configuración Compose es deliberadamente local. Antes de publicar en Interne
 - revisar privacidad, términos, eliminación legal y publicación de coordenadas sensibles.
 
 La transición a ClickHouse, Trino o tiles vectoriales sólo se justifica con datos de volumen y concurrencia. La API pública debe mantenerse estable al cambiar el motor.
+
+La beta de interfaz cubre registro, publicación, descubrimiento, consulta, mapa y
+descarga. La creación de nuevas versiones, tokens de ingesta, archivo de datasets,
+reportes y resolución de moderación siguen disponibles exclusivamente mediante la API;
+no forman parte del cierre de UI.
 
 ## Estructura
 

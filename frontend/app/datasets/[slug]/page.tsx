@@ -4,6 +4,11 @@ import { DatasetDetail } from "@/components/dataset/dataset-detail";
 import { LoadingState } from "@/components/shared/query-state";
 import { demoDatasets } from "@/lib/demo-data";
 
+// Dataset slugs are created after deployment. Force dynamic rendering so a
+// newly published slug never turns a read-only runtime into a prerender-cache
+// write (and so metadata can safely use the internal API with no-store).
+export const dynamic = "force-dynamic";
+
 export function generateStaticParams() {
   return demoDatasets.map((dataset) => ({ slug: dataset.slug }));
 }
@@ -22,7 +27,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (internalApi) {
     try {
       const response = await fetch(`${internalApi}/datasets/${encodeURIComponent(slug)}`, {
-        next: { revalidate: 300 },
+        // The production container is intentionally read-only. Dynamic dataset
+        // metadata must not trigger Next's filesystem cache writes at runtime.
+        cache: "no-store",
       });
       if (response.ok) {
         const published = await response.json() as { title?: string; description?: string };

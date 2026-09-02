@@ -129,6 +129,12 @@ async def create_dataset(
     apply_spatial_coverage(version, payload.spatial_coverage)
     apply_temporal_coverage(version, payload.temporal_coverage)
     session.add(dataset)
+    # Add optional one-to-one coverage rows explicitly. This keeps the behavior
+    # deterministic across SQLAlchemy's async relationship loading strategies.
+    if version.spatial_coverage:
+        session.add(version.spatial_coverage)
+    if version.temporal_coverage:
+        session.add(version.temporal_coverage)
     await session.flush()
     audit(
         session,
@@ -172,6 +178,10 @@ async def update_dataset(
         _ensure_mutable(version)
         apply_spatial_coverage(version, payload.spatial_coverage)
         apply_temporal_coverage(version, payload.temporal_coverage)
+        if version.spatial_coverage:
+            session.add(version.spatial_coverage)
+        if version.temporal_coverage:
+            session.add(version.temporal_coverage)
     audit(
         session,
         "dataset.updated",
@@ -225,6 +235,10 @@ async def create_version(
             timezone_name=source_time.timezone_name,
         )
     session.add(version)
+    if version.spatial_coverage:
+        session.add(version.spatial_coverage)
+    if version.temporal_coverage:
+        session.add(version.temporal_coverage)
     audit(
         session,
         "dataset.version_created",

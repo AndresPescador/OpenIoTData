@@ -92,3 +92,7 @@ La API de lotes JSON convierte internamente cada solicitud aceptada en un recurs
 ## Privacidad geográfica
 
 No publique coordenadas exactas de hogares, infraestructura crítica, especies protegidas u otros activos sensibles. Use ubicación general del dataset, reducción de precisión o elimine la ubicación por registro. La plataforma valida rangos, no determina por sí sola si una coordenada es segura para divulgar.
+
+La publicación desde navegador cubre archivos CSV, TSV, JSON, NDJSON, Parquet y GeoJSON.
+La ingesta continua, las nuevas versiones, los tokens y su revocación se mantienen como
+capacidades de API; consulte [API.md](API.md) para esos recorridos.

@@ -143,6 +143,8 @@ code { overflow-wrap: anywhere; }
 }
 .nav-login { align-self: center; min-height: 40px; padding: 8px 14px; color: white; background: var(--ink); border: 1px solid var(--ink); border-radius: 3px; font-weight: 700; }
 .nav-login:hover { background: var(--mineral-dark); border-color: var(--mineral-dark); }
+.nav-register { align-self: center; min-height: 40px; padding: 8px 10px; color: var(--mineral-dark); background: transparent; border: 1px solid transparent; border-radius: 3px; font-weight: 700; }
+.nav-register:hover { color: var(--ink); background: var(--mineral-pale); border-color: var(--line-strong); }
 .nav-signout { font-size: .74rem; }
 .nav-toggle { display: none; width: 44px; height: 44px; margin-left: auto; place-items: center; color: var(--ink); background: transparent; border: 1px solid var(--line); }
 
@@ -449,8 +451,8 @@ code { overflow-wrap: anywhere; }
 .wizard-steps li.is-current button { color: var(--ink-soft); background: var(--cyan-pale); }
 .wizard-steps li.is-current button::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--mineral); }
 .wizard-steps li.is-current button > span, .wizard-steps li.is-complete button > span { color: white; background: var(--mineral); border-color: var(--mineral); }
-.wizard-form { max-width: 920px; margin-inline: auto; }
-.wizard-panel { margin: 0; padding: 30px; background: var(--paper-raised); border: 1px solid var(--line-strong); }
+.wizard-form { width: 100%; max-width: 920px; min-width: 0; margin-inline: auto; }
+.wizard-panel { width: 100%; min-width: 0; margin: 0; padding: 30px; background: var(--paper-raised); border: 1px solid var(--line-strong); }
 .wizard-panel legend { padding-inline: 8px; font-size: 1.45rem; font-weight: 760; letter-spacing: -.025em; }
 .panel-intro { max-width: 68ch; margin-bottom: 26px; color: var(--graphite); }
 .form-field { display: grid; align-content: start; gap: 7px; margin-bottom: 20px; }
@@ -565,6 +567,7 @@ code { overflow-wrap: anywhere; }
 .auth-required { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .auth-required h1 { margin: 20px 0 10px; }
 .auth-required p { max-width: 58ch; color: var(--graphite); }
+.auth-required__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 10px; }
 .not-found-state h1 { margin: 20px 0 8px; }
 .not-found-state p { color: var(--graphite); }
 
@@ -679,6 +682,11 @@ code { overflow-wrap: anywhere; }
   .wizard-actions { grid-template-columns: auto 1fr auto; }
   .wizard-actions > span { text-align: center; }
   .wizard-actions .button { padding-inline: 10px; }
+  /* On narrow screens the sticky footer can overlap the fieldset while the
+     browser scrolls a control into view, intercepting pointer events. Keep
+     the actions in normal flow so touch and keyboard activation share the
+     same accessible hit target. */
+  .wizard-actions { position: relative; z-index: 1; }
   .account-summary, .admin-summary { grid-template-columns: 1fr; }
   .account-summary > div, .admin-summary > div { border-right: 0; border-bottom: 1px solid var(--line); }
   .account-summary > div:last-child, .admin-summary > div:last-child { border-bottom: 0; }

@@ -22,6 +22,8 @@ node_modules/
 out/
 coverage/
 *.tsbuildinfo
+test-results/
+playwright-report/
 
 # Runtime and generated data
 data/

@@ -272,6 +272,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: /api/v1
+        NEXT_PUBLIC_DEMO_MODE: ${NEXT_PUBLIC_DEMO_MODE:-false}
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: /api/v1

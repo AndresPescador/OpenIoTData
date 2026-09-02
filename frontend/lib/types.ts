@@ -127,6 +127,8 @@ export interface DraftPayload {
   resourceName: string;
   resourceFormat: string;
   timeField: string;
+  sensorField: string;
+  measureField: string;
   latitudeField: string;
   longitudeField: string;
 }

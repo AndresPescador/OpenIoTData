@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import io
+import json
 from datetime import UTC, datetime, timedelta
 
+import pyarrow as pa
+import pyarrow.parquet as pq
 from httpx import AsyncClient
 from sqlalchemy import select
 
@@ -199,3 +203,161 @@ async def test_published_catalog_metadata_cannot_be_changed_retroactively(
     assert unchanged.status_code == 200
     assert unchanged.json()["title"] == "Calidad del aire Bogotá"
     assert unchanged.json()["license"] == "CC BY 4.0"
+
+
+async def test_public_version_download_and_invalid_inputs(
+    client: AsyncClient, published_dataset: dict[str, object]
+) -> None:
+    slug = published_dataset["slug"]
+    version = await client.get(f"/api/v1/datasets/{slug}/versions/1")
+    assert version.status_code == 200
+    assert version.json()["status"] == "published"
+    assert (await client.get(f"/api/v1/datasets/{slug}/versions/99")).status_code == 404
+    assert (await client.get("/api/v1/datasets/not-published")).status_code == 404
+    assert (
+        await client.get(f"/api/v1/datasets/{slug}/preview", params={"resource_id": "missing"})
+    ).status_code == 404
+    assert (
+        await client.post(
+            f"/api/v1/datasets/{slug}/query",
+            json={"resource_id": "missing", "limit": 1},
+        )
+    ).status_code == 404
+    assert (
+        await client.post(
+            f"/api/v1/datasets/{slug}/query",
+            json={"columns": ["unknown"], "limit": 1},
+        )
+    ).status_code == 422
+
+    normalized = await client.get(
+        f"/api/v1/datasets/{slug}/versions/1/resources/{published_dataset['resource_id']}/download",
+        params={"normalized": "true"},
+    )
+    assert normalized.status_code == 200
+    assert normalized.content.startswith(b"PAR1")
+    assert (
+        await client.get(
+            f"/api/v1/datasets/{slug}/versions/99/resources/{published_dataset['resource_id']}/download"
+        )
+    ).status_code == 404
+    assert (await client.get("/api/v1/map/datasets", params={"bbox": "bad"})).status_code == 422
+    assert (
+        await client.get(f"/api/v1/datasets/{slug}/points", params={"bbox": "bad"})
+    ).status_code == 422
+    outside = await client.get(f"/api/v1/datasets/{slug}/points", params={"bbox": "0,0,1,1"})
+    assert outside.status_code == 200
+    assert outside.json()["features"] == []
+
+
+async def test_all_advertised_formats_complete_publish_query_and_download_flow(
+    client: AsyncClient,
+) -> None:
+    owner = {"X-Dev-User": "format-owner"}
+    resources = {
+        "csv": (
+            "format.csv",
+            b"observed_at,sensor_id,value,latitude,longitude\n2026-01-01T00:00:00Z,S-1,12.5,4.7,-74.0\n",
+            "text/csv",
+        ),
+        "tsv": (
+            "format.tsv",
+            b"observed_at\tsensor_id\tvalue\tlatitude\tlongitude\n2026-01-01T00:00:00Z\tS-1\t12.5\t4.7\t-74.0\n",
+            "text/tab-separated-values",
+        ),
+        "json": (
+            "format.json",
+            json.dumps([{
+                "observed_at": "2026-01-01T00:00:00Z",
+                "sensor_id": "S-1",
+                "value": 12.5,
+            }]).encode(),
+            "application/json",
+        ),
+        "ndjson": (
+            "format.ndjson",
+            b'{"observed_at":"2026-01-01T00:00:00Z","sensor_id":"S-1","value":12.5}\n',
+            "application/x-ndjson",
+        ),
+        "geojson": (
+            "format.geojson",
+            json.dumps({
+                "type": "FeatureCollection",
+                "features": [{
+                    "type": "Feature",
+                    "properties": {"sensor_id": "S-1", "value": 12.5},
+                    "geometry": {"type": "Point", "coordinates": [-74.0, 4.7]},
+                }],
+            }).encode(),
+            "application/geo+json",
+        ),
+    }
+    parquet_buffer = io.BytesIO()
+    pq.write_table(
+        pa.table({
+            "observed_at": ["2026-01-01T00:00:00Z"],
+            "sensor_id": ["S-1"],
+            "value": [12.5],
+        }),
+        parquet_buffer,
+    )
+    resources["parquet"] = (
+        "format.parquet",
+        parquet_buffer.getvalue(),
+        "application/vnd.apache.parquet",
+    )
+
+    for resource_format, (filename, content, media_type) in resources.items():
+        created = await client.post(
+            "/api/v1/datasets",
+            headers=owner,
+            json={"title": f"Formato {resource_format}", "license": "CC BY 4.0"},
+        )
+        assert created.status_code == 201
+        dataset = created.json()
+        version_id = dataset["versions"][0]["id"]
+        uploaded = await client.post(
+            f"/api/v1/datasets/{dataset['id']}/versions/{version_id}/resources",
+            headers=owner,
+            files={"file": (filename, content, media_type)},
+        )
+        assert uploaded.status_code == 201, uploaded.text
+        resource = uploaded.json()["resource"]
+        assert resource["format"] == resource_format
+        assert resource["status"] == "ready"
+        if resource_format != "geojson":
+            mapped = await client.put(
+                f"/api/v1/datasets/{dataset['id']}/versions/{version_id}/mapping",
+                headers=owner,
+                json={
+                    "resource_id": resource["id"],
+                    "observed_at_field": "observed_at",
+                    "sensor_id_field": "sensor_id",
+                },
+            )
+            assert mapped.status_code == 204, mapped.text
+        published = await client.post(
+            f"/api/v1/datasets/{dataset['id']}/versions/{version_id}/publish", headers=owner
+        )
+        assert published.status_code == 200, published.text
+        detail = await client.get(f"/api/v1/datasets/{dataset['slug']}")
+        assert detail.status_code == 200
+        assert detail.json()["formats"] == [resource_format]
+        query = await client.post(
+            f"/api/v1/datasets/{dataset['slug']}/query",
+            json={"resource_id": resource["id"], "limit": 10},
+        )
+        assert query.status_code == 200
+        assert query.json()["returned"] == 1
+        if resource_format == "geojson":
+            points = await client.get(f"/api/v1/datasets/{dataset['slug']}/points")
+            assert points.status_code == 200, points.text
+            assert points.json()["features"][0]["geometry"] == {
+                "type": "Point",
+                "coordinates": [-74.0, 4.7],
+            }
+        downloaded = await client.get(
+            f"/api/v1/datasets/{dataset['slug']}/resources/{resource['id']}/download"
+        )
+        assert downloaded.status_code == 200
+        assert downloaded.content == content

@@ -11,6 +11,11 @@ export ORIGIN=http://localhost:8080
 export API="$ORIGIN/api/v1"
 ```
 
+La interfaz web ofrece registro abierto en Keycloak durante el desarrollo local:
+selecciona “Crear cuenta” desde la cabecera o desde `/publish`. El modo demo del
+frontend es opt-in; con `NEXT_PUBLIC_DEMO_MODE=false`, un fallo del API no se sustituye
+por datos ilustrativos.
+
 La lectura de datasets publicados es anónima. La administración usa un access token OIDC con audience `openiotdata-api`:
 
 ```bash
@@ -159,6 +164,13 @@ curl --fail --silent --show-error -X POST "$API/datasets/$DATASET_ID/tokens" \
 El secreto `token` se devuelve una sola vez. Guárdelo fuera de logs y repositorios. Para revocar: `DELETE /datasets/{dataset_id}/tokens/{token_id}`.
 
 El lote completo está documentado en [INGESTION.md](INGESTION.md).
+
+## Capacidades fuera de la interfaz beta
+
+La UI local cubre el recorrido de registro, publicación, catálogo, consulta, mapa y
+descarga. La API conserva además la gestión avanzada: nuevas versiones, tokens de
+ingesta y su revocación, archivo de datasets, reportes comunitarios y resolución de
+moderación. Estas operaciones no tienen una pantalla dedicada en esta beta.
 
 ## Estados, paginación y errores
 

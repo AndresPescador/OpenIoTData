@@ -67,7 +67,10 @@ export function SiteHeader() {
               <button type="button" className="nav-utility nav-signout" onClick={() => auth.logout()}>Salir</button>
             </>
           ) : (
-            <button type="button" className="nav-login" onClick={() => auth.login()} disabled={!auth.ready}>Ingresar</button>
+            <>
+              <button type="button" className="nav-register" onClick={() => auth.register()} disabled={!auth.ready}>Crear cuenta</button>
+              <button type="button" className="nav-login" onClick={() => auth.login()} disabled={!auth.ready}>Ingresar</button>
+            </>
           )}
         </nav>
       </div>

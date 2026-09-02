@@ -15,6 +15,7 @@ interface AuthContextValue {
   user?: AuthUser;
   mode: "oidc" | "development-bypass" | "anonymous";
   login: () => Promise<void>;
+  register: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -31,7 +32,7 @@ function userFromClaims(claims?: KeycloakTokenParsed): AuthUser | undefined {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const clientRef = useRef<Keycloak | null>(null);
-  const [state, setState] = useState<Omit<AuthContextValue, "login" | "logout">>(() => {
+  const [state, setState] = useState<Omit<AuthContextValue, "login" | "register" | "logout">>(() => {
     if (process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS !== "true") return { ready: false, authenticated: false, mode: "anonymous" };
     const name = process.env.NEXT_PUBLIC_DEV_USER || "local-developer";
     return { ready: true, authenticated: true, mode: "development-bypass", user: { subject: name, displayName: name } };
@@ -91,12 +92,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async () => {
     if (clientRef.current) await clientRef.current.login({ redirectUri: window.location.href });
   }, []);
+  const register = useCallback(async () => {
+    if (clientRef.current) await clientRef.current.register({ redirectUri: window.location.href });
+  }, []);
   const logout = useCallback(async () => {
     window.sessionStorage.removeItem("openiotdata:access-token");
     if (clientRef.current) await clientRef.current.logout({ redirectUri: window.location.origin });
   }, []);
 
-  return <AuthContext.Provider value={{ ...state, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ ...state, login, register, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {
