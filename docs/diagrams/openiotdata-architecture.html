@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenIoTData · Arquitectura</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --paper: #f5f5f5;
+      --ink: #2d3142;
+      --muted: #4f5d75;
+      --soft: #7a8399;
+      --accent: #eb6c36;
+      --link: #2e5aa8;
+      --sans: 'Geist', system-ui, sans-serif;
+      --serif: 'Instrument Serif', Georgia, serif;
+      --mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem 2rem;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+    }
+    .frame { width: 100%; max-width: 1280px; }
+    svg { display: block; width: 100%; min-width: 900px; }
+    .zone-label { fill: rgba(45,49,66,.42); font: 500 8px var(--mono); letter-spacing: .14em; text-anchor: middle; }
+    .node-name { fill: var(--ink); font: 600 12px var(--sans); text-anchor: middle; }
+    .node-sub { fill: var(--muted); font: 400 8.5px var(--mono); text-anchor: middle; }
+    .node-chip { fill: var(--soft); font: 500 7px var(--mono); letter-spacing: .08em; text-anchor: middle; }
+    .arrow-label { fill: var(--muted); font: 400 8px var(--mono); letter-spacing: .06em; text-anchor: middle; }
+    .legend { fill: var(--muted); font: 400 8.5px var(--sans); }
+  </style>
+</head>
+<body>
+  <main class="frame">
+    <svg viewBox="0 0 1200 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="openiotdata-architecture-title openiotdata-architecture-desc">
+      <title id="openiotdata-architecture-title">Arquitectura de OpenIoTData</title>
+      <desc id="openiotdata-architecture-desc">Navegadores y sensores entran por Nginx hacia el frontend, la API FastAPI y Keycloak; la API usa PostgreSQL, MinIO y Redis, mientras Celery procesa recursos con ClamAV y DuckDB o PyArrow.</desc>
+      <defs>
+        <pattern id="architecture-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+          <circle cx="1" cy="1" r=".9" fill="rgba(45,49,66,.10)"/>
+        </pattern>
+        <marker id="architecture-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+        </marker>
+        <marker id="architecture-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+        </marker>
+        <marker id="architecture-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+        </marker>
+      </defs>
+
+      <rect width="1200" height="620" fill="#f5f5f5"/>
+      <rect width="1200" height="620" fill="url(#architecture-dots)" opacity=".55"/>
+
+      <!-- Zones: external clients, control plane, and data/compute plane. -->
+      <rect x="40" y="32" width="220" height="486" rx="8" fill="rgba(79,93,117,.025)" stroke="rgba(45,49,66,.12)" stroke-width=".8"/>
+      <rect x="300" y="32" width="360" height="486" rx="8" fill="rgba(45,49,66,.02)" stroke="rgba(45,49,66,.12)" stroke-width=".8"/>
+      <rect x="700" y="32" width="460" height="486" rx="8" fill="rgba(45,49,66,.02)" stroke="rgba(45,49,66,.12)" stroke-width=".8"/>
+      <rect x="104" y="36" width="92" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="150" y="45" class="zone-label">CLIENTES</text>
+      <rect x="420" y="36" width="120" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="480" y="45" class="zone-label">CONTROL PLANE</text>
+      <rect x="852" y="36" width="156" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="930" y="45" class="zone-label">DATOS + CÁLCULO</text>
+
+      <!-- Connectors are drawn before nodes so the boxes mask their endpoints. -->
+      <path d="M232 198 H300" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#architecture-arrow-link)"/>
+      <path d="M232 398 H268 Q280 398 280 368 V276 H300" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#architecture-arrow-link)"/>
+      <path d="M480 180 V236" fill="none" stroke="#4f5d75" stroke-width="1.1" marker-end="url(#architecture-arrow)"/>
+      <path d="M480 308 V388" fill="none" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#architecture-arrow-accent)"/>
+      <path d="M548 180 V388" fill="none" stroke="#4f5d75" stroke-width="1.1" marker-end="url(#architecture-arrow)"/>
+      <path d="M628 276 H732" fill="none" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#architecture-arrow-accent)"/>
+      <path d="M628 276 H684 Q696 276 696 156 H732" fill="none" stroke="#4f5d75" stroke-width="1.1" marker-end="url(#architecture-arrow)"/>
+      <path d="M628 276 H684 Q696 276 696 316 H732" fill="none" stroke="#4f5d75" stroke-width="1.1" marker-end="url(#architecture-arrow)"/>
+      <path d="M912 316 H948" fill="none" stroke="#4f5d75" stroke-width="1.1" stroke-dasharray="5 4" marker-end="url(#architecture-arrow)"/>
+      <path d="M948 388 V420 H822 V456" fill="none" stroke="#4f5d75" stroke-width="1.1" marker-end="url(#architecture-arrow)"/>
+      <path d="M948 388 V456" fill="none" stroke="#4f5d75" stroke-width="1.1" marker-end="url(#architecture-arrow)"/>
+      <path d="M732 492 H672 Q660 492 660 276 H628" fill="none" stroke="#7a8399" stroke-width="1" stroke-dasharray="5 4" marker-end="url(#architecture-arrow)"/>
+      <path d="M628 276 H684 Q696 276 696 492 H948" fill="none" stroke="#4f5d75" stroke-width="1.1" marker-end="url(#architecture-arrow)"/>
+
+      <!-- Connector labels use opaque paper masks and stay clear of strokes. -->
+      <rect x="246" y="180" width="54" height="14" rx="3" fill="#f5f5f5"/>
+      <text x="273" y="190" class="arrow-label" fill="#2e5aa8">HTTPS</text>
+      <rect x="246" y="346" width="62" height="14" rx="3" fill="#f5f5f5"/>
+      <text x="277" y="356" class="arrow-label" fill="#2e5aa8">BATCH API</text>
+      <rect x="492" y="202" width="58" height="14" rx="3" fill="#f5f5f5"/>
+      <text x="521" y="212" class="arrow-label">SAME ORIGIN</text>
+      <rect x="482" y="332" width="56" height="14" rx="3" fill="#f5f5f5"/>
+      <text x="510" y="342" class="arrow-label" fill="#eb6c36">API CALLS</text>
+      <rect x="654" y="250" width="76" height="14" rx="3" fill="#f5f5f5"/>
+      <text x="692" y="260" class="arrow-label" fill="#eb6c36">CATALOG</text>
+      <rect x="650" y="290" width="64" height="14" rx="3" fill="#f5f5f5"/>
+      <text x="682" y="300" class="arrow-label">OBJECTS</text>
+      <rect x="654" y="468" width="76" height="14" rx="3" fill="#f5f5f5"/>
+      <text x="692" y="478" class="arrow-label">NORMALIZE</text>
+
+      <!-- Client nodes. -->
+      <rect x="68" y="166" width="164" height="64" rx="6" fill="rgba(79,93,117,.10)" stroke="#7a8399" stroke-width="1"/>
+      <rect x="76" y="174" width="32" height="12" rx="2" fill="transparent" stroke="rgba(122,131,153,.5)" stroke-width=".8"/>
+      <text x="92" y="183" class="node-chip">EXT</text>
+      <text x="150" y="196" class="node-name">Navegador</text>
+      <text x="150" y="212" class="node-sub">catálogo · mapa · publish</text>
+
+      <rect x="68" y="366" width="164" height="64" rx="6" fill="rgba(79,93,117,.10)" stroke="#7a8399" stroke-width="1"/>
+      <rect x="76" y="374" width="32" height="12" rx="2" fill="transparent" stroke="rgba(122,131,153,.5)" stroke-width=".8"/>
+      <text x="92" y="383" class="node-chip">EXT</text>
+      <text x="150" y="396" class="node-name">Sensores / scripts</text>
+      <text x="150" y="412" class="node-sub">records:batch · token scope</text>
+
+      <!-- Control-plane nodes. -->
+      <rect x="332" y="112" width="296" height="68" rx="6" fill="#f5f5f5" stroke="rgba(45,49,66,.32)" stroke-width="1"/>
+      <rect x="340" y="120" width="36" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,.3)" stroke-width=".8"/>
+      <text x="358" y="129" class="node-chip">EDGE</text>
+      <text x="480" y="142" class="node-name">Nginx · same-origin gateway</text>
+      <text x="480" y="158" class="node-sub">/ · /api/v1 · /auth</text>
+
+      <rect x="332" y="236" width="296" height="72" rx="6" fill="rgba(235,108,54,.08)" stroke="#eb6c36" stroke-width="1.2"/>
+      <rect x="340" y="244" width="32" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,.5)" stroke-width=".8"/>
+      <text x="356" y="253" class="node-chip" fill="#eb6c36">API</text>
+      <text x="480" y="268" class="node-name">FastAPI · monolito modular</text>
+      <text x="480" y="284" class="node-sub">catalog · publication · query · admin</text>
+
+      <rect x="332" y="388" width="136" height="64" rx="6" fill="#f5f5f5" stroke="rgba(45,49,66,.3)" stroke-width="1"/>
+      <rect x="340" y="396" width="36" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,.3)" stroke-width=".8"/>
+      <text x="358" y="405" class="node-chip">WEB</text>
+      <text x="400" y="418" class="node-name">Next.js</text>
+      <text x="400" y="434" class="node-sub">React + TS</text>
+
+      <rect x="492" y="388" width="136" height="64" rx="6" fill="#f5f5f5" stroke="rgba(45,49,66,.3)" stroke-width="1"/>
+      <rect x="500" y="396" width="36" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,.3)" stroke-width=".8"/>
+      <text x="518" y="405" class="node-chip">OIDC</text>
+      <text x="560" y="418" class="node-name">Keycloak</text>
+      <text x="560" y="434" class="node-sub">identidad · tokens</text>
+
+      <!-- Data and compute nodes. -->
+      <rect x="732" y="92" width="180" height="64" rx="6" fill="#fff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="740" y="100" width="36" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,.35)" stroke-width=".8"/>
+      <text x="758" y="109" class="node-chip">SQL</text>
+      <text x="822" y="124" class="node-name">PostgreSQL + PostGIS</text>
+      <text x="822" y="140" class="node-sub">metadata · state · coverage</text>
+
+      <rect x="948" y="92" width="180" height="64" rx="6" fill="rgba(45,49,66,.05)" stroke="#4f5d75" stroke-width="1"/>
+      <rect x="956" y="100" width="36" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,.5)" stroke-width=".8"/>
+      <text x="974" y="109" class="node-chip">S3</text>
+      <text x="1038" y="124" class="node-name">MinIO / S3</text>
+      <text x="1038" y="140" class="node-sub">originales · Parquet</text>
+
+      <rect x="732" y="284" width="180" height="64" rx="6" fill="rgba(45,49,66,.05)" stroke="#4f5d75" stroke-width="1"/>
+      <rect x="740" y="292" width="36" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,.5)" stroke-width=".8"/>
+      <text x="758" y="301" class="node-chip">QUEUE</text>
+      <text x="822" y="316" class="node-name">Redis</text>
+      <text x="822" y="332" class="node-sub">broker · resultados transitorios</text>
+
+      <rect x="948" y="284" width="180" height="64" rx="6" fill="#f5f5f5" stroke="rgba(45,49,66,.3)" stroke-width="1"/>
+      <rect x="956" y="292" width="36" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,.3)" stroke-width=".8"/>
+      <text x="974" y="301" class="node-chip">ASYNC</text>
+      <text x="1038" y="316" class="node-name">Celery worker</text>
+      <text x="1038" y="332" class="node-sub">scan · infer · normalize</text>
+
+      <rect x="732" y="420" width="180" height="64" rx="6" fill="rgba(79,93,117,.07)" stroke="#7a8399" stroke-width="1"/>
+      <rect x="740" y="428" width="36" height="12" rx="2" fill="transparent" stroke="rgba(122,131,153,.5)" stroke-width=".8"/>
+      <text x="758" y="437" class="node-chip">AV</text>
+      <text x="822" y="452" class="node-name">ClamAV</text>
+      <text x="822" y="468" class="node-sub">fail closed · INSTREAM</text>
+
+      <rect x="948" y="420" width="180" height="64" rx="6" fill="#f5f5f5" stroke="rgba(45,49,66,.3)" stroke-width="1"/>
+      <rect x="956" y="428" width="36" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,.3)" stroke-width=".8"/>
+      <text x="974" y="437" class="node-chip">READ</text>
+      <text x="1038" y="452" class="node-name">DuckDB + PyArrow</text>
+      <text x="1038" y="468" class="node-sub">schema-on-read · query</text>
+
+      <!-- Legend. -->
+      <line x1="40" y1="542" x2="1160" y2="542" stroke="rgba(45,49,66,.12)" stroke-width=".8"/>
+      <text x="40" y="562" class="zone-label" text-anchor="start">LEGEND</text>
+      <rect x="112" y="552" width="16" height="12" rx="2" fill="rgba(235,108,54,.08)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="136" y="562" class="legend">foco / entrada principal</text>
+      <rect x="292" y="552" width="16" height="12" rx="2" fill="#fff" stroke="#2d3142" stroke-width="1"/>
+      <text x="316" y="562" class="legend">fuente de verdad</text>
+      <rect x="446" y="552" width="16" height="12" rx="2" fill="rgba(45,49,66,.05)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="470" y="562" class="legend">almacenamiento / cola</text>
+      <line x1="646" y1="558" x2="674" y2="558" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#architecture-arrow-accent)"/>
+      <text x="684" y="562" class="legend">flujo principal</text>
+      <line x1="808" y1="558" x2="836" y2="558" stroke="#7a8399" stroke-width="1" stroke-dasharray="5 4" marker-end="url(#architecture-arrow)"/>
+      <text x="846" y="562" class="legend">asíncrono / retorno</text>
+    </svg>
+  </main>
+</body>
+</html>

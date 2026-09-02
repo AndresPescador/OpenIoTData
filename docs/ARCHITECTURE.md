@@ -1,5 +1,18 @@
 # Arquitectura de OpenIoTData
 
+## Diagramas
+
+Estos diagramas son la vista visual de esta documentación y están construidos como
+HTML autocontenido con SVG inline, siguiendo el formato de `diagram-design`. Se pueden
+abrir directamente en un navegador, sin build ni dependencias del backend:
+
+- [Arquitectura de despliegue y límites de confianza](diagrams/openiotdata-architecture.html)
+- [Flujo de publicación, normalización e ingesta](diagrams/openiotdata-ingestion-flow.html)
+
+El primero muestra los tres planos principales —clientes, control y datos/cálculo— y
+sus dependencias. El segundo muestra quién participa en cada paso y qué artefacto pasa
+entre ellos; la rama discontinua representa cuarentena, errores o consultas posteriores.
+
 ## Límites del sistema
 
 OpenIoTData separa el plano de control del plano de datos:

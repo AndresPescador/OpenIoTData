@@ -1,8 +1,35 @@
+<div align="center">
+
 # OpenIoTData
 
-Portal abierto para publicar, descubrir, explorar en el mapa y reutilizar datasets heterogéneos de sensores IoT. Los metadatos, permisos y versiones viven en PostgreSQL/PostGIS; los archivos originales y su normalización Parquet permanecen en almacenamiento de objetos y se consultan con esquema inferido.
+**Catálogo abierto para publicar, descubrir y reutilizar datos heterogéneos de sensores IoT.**
 
-> Este repositorio contiene una primera versión funcional para desarrollo local. Los datos de demostración son ilustrativos: no representan mediciones verificadas ni una validación científica.
+<a href="https://github.com/AndresPescador/OpenIoTData/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://github.com/AndresPescador/OpenIoTData/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI en main"></a>
+<br>
+<sub>Beta local · Apache License 2.0 · FastAPI + Next.js + PostgreSQL/PostGIS</sub>
+
+<br><br>
+
+<a href="#inicio-rápido">Inicio rápido</a> ·
+<a href="#tecnologías">Tecnologías</a> ·
+<a href="#arquitectura">Arquitectura</a> ·
+<a href="docs/API.md">API</a> ·
+<a href="CONTRIBUTING.md">Contribuir</a> ·
+<a href="LICENSE">Licencia</a>
+
+</div>
+
+> Este repositorio contiene una beta funcional para desarrollo local. Los datos de demostración son ilustrativos: no representan mediciones verificadas ni una validación científica.
+
+## Qué ofrece
+
+| Capacidad | Resultado |
+|---|---|
+| Publicación reproducible | Carga CSV, TSV, JSON, NDJSON, Parquet o GeoJSON; el original se conserva y se genera un derivado Parquet. |
+| Catálogo público | Descubrimiento, filtros, paginación, fichas de dataset y consulta segura sin exponer SQL libre. |
+| Geografía y series temporales | Mapeo de tiempo, sensor y coordenadas; cobertura PostGIS, puntos y visualizaciones. |
+| Reutilización | Previsualización, consulta parametrizada, mapa y descarga versionada del original o normalizado. |
+| Ingesta continua | Lotes append-only con tokens limitados por dataset e `Idempotency-Key`, disponible mediante API. |
 
 ## Inicio rápido
 
@@ -10,7 +37,7 @@ Requisitos:
 
 - Docker Engine 24+ y Docker Compose v2.20+.
 - Aproximadamente 10–12 GB de RAM disponibles; ClamAV reserva hasta 3 GB porque cargar y actualizar firmas produce picos importantes.
-- `curl` y `make` para usar los comandos auxiliares; `jq` y `sha256sum` para el recorrido `make e2e`.
+- `curl` y `make` para los comandos auxiliares; `jq` y `sha256sum` para `make e2e`.
 
 Arranque completo:
 
@@ -22,9 +49,8 @@ make bootstrap
 `make bootstrap` valida Compose, construye las imágenes, espera los healthchecks, aplica las migraciones desde el arranque de `api`, ejecuta el seed idempotente y verifica los endpoints. La primera ejecución puede tardar varios minutos mientras ClamAV descarga o carga sus firmas.
 
 Abra [http://openiotdata.localhost:8080](http://openiotdata.localhost:8080). Si el navegador no resuelve subdominios `.localhost`, use [http://localhost:8080](http://localhost:8080); Keycloak seguirá anunciando el issuer canónico `openiotdata.localhost`.
-Para el registro/inicio de sesión del E2E, mantenga el hostname canónico (o defina
-`PLAYWRIGHT_BASE_URL` a una URL que comparta ese origen con Keycloak), ya que las cookies
-OIDC son same-origin.
+
+Para el registro/inicio de sesión del E2E, mantenga el hostname canónico o defina `PLAYWRIGHT_BASE_URL` a una URL que comparta ese origen con Keycloak, ya que las cookies OIDC son same-origin.
 
 Comandos habituales:
 
@@ -42,6 +68,91 @@ make backup   # exportar PostgreSQL y objetos
 ```
 
 No use `docker compose down -v` salvo que quiera eliminar de forma irreversible la base de datos, los objetos y las firmas locales.
+
+## Tecnologías
+
+<table>
+  <tr>
+    <th align="center">Experiencia</th>
+    <th align="center">Plano de control</th>
+    <th align="center">Datos y cálculo</th>
+    <th align="center">Runtime local</th>
+  </tr>
+  <tr valign="top">
+    <td align="center">
+      <a href="https://nextjs.org/"><img src="docs/assets/technologies/nextdotjs.svg" width="42" height="42" alt="Next.js"></a><br>
+      <sub>Next.js · React + TypeScript</sub>
+    </td>
+    <td align="center">
+      <a href="https://fastapi.tiangolo.com/"><img src="docs/assets/technologies/fastapi.svg" width="42" height="42" alt="FastAPI"></a><br>
+      <sub>FastAPI · API modular</sub><br><br>
+      <a href="https://www.keycloak.org/"><img src="docs/assets/technologies/keycloak.svg" width="42" height="42" alt="Keycloak"></a><br>
+      <sub>Keycloak · OIDC</sub>
+    </td>
+    <td align="center">
+      <a href="https://www.postgresql.org/"><img src="docs/assets/technologies/postgresql.svg" width="38" height="38" alt="PostgreSQL"></a><br>
+      <sub>PostgreSQL + PostGIS</sub><br><br>
+      <a href="https://redis.io/"><img src="docs/assets/technologies/redis.svg" width="38" height="38" alt="Redis"></a>
+      <a href="https://docs.celeryq.dev/"><img src="docs/assets/technologies/celery.svg" width="38" height="38" alt="Celery"></a><br>
+      <sub>Redis · Celery</sub><br><br>
+      <a href="https://min.io/"><img src="docs/assets/technologies/minio.svg" width="38" height="38" alt="MinIO"></a>
+      <a href="https://duckdb.org/"><img src="docs/assets/technologies/duckdb.svg" width="38" height="38" alt="DuckDB"></a>
+      <a href="https://arrow.apache.org/"><img src="docs/assets/technologies/apachearrow.svg" width="38" height="38" alt="Apache Arrow"></a><br>
+      <sub>MinIO · DuckDB · PyArrow</sub><br><br>
+      <a href="https://github.com/Cisco-Talos/clamav"><strong>ClamAV</strong></a><br>
+      <sub>antivirus fail-closed</sub>
+    </td>
+    <td align="center">
+      <a href="https://www.docker.com/"><img src="docs/assets/technologies/docker.svg" width="42" height="42" alt="Docker"></a><br>
+      <sub>Docker Compose</sub><br><br>
+      <a href="https://nginx.org/"><img src="docs/assets/technologies/nginx.svg" width="42" height="42" alt="NGINX"></a><br>
+      <sub>NGINX · same-origin gateway</sub>
+    </td>
+  </tr>
+</table>
+
+Las fuentes, versiones y atribuciones de los SVG están documentadas en [docs/assets/technologies/README.md](docs/assets/technologies/README.md). Las marcas pertenecen a sus titulares.
+
+## Arquitectura
+
+<p align="center">
+  <a href="docs/diagrams/openiotdata-architecture.html">
+    <img src="docs/assets/readme/openiotdata-architecture.png" alt="Arquitectura de despliegue de OpenIoTData: clientes, plano de control y plano de datos y cálculo" width="100%">
+  </a>
+</p>
+
+La vista completa del diagrama se puede abrir en [HTML](docs/diagrams/openiotdata-architecture.html) o en la documentación de [arquitectura](docs/ARCHITECTURE.md).
+
+OpenIoTData usa un monolito modular: una API mantiene catálogo, publicación, consulta, identidad y moderación; Celery separa el trabajo intensivo. Nginx sirve frontend, API e identidad bajo un mismo origen.
+
+### Responsabilidad de cada almacenamiento
+
+- **PostgreSQL/PostGIS:** datasets, versiones, recursos, campos inferidos, trabajos, permisos, auditoría y coberturas geográficas.
+- **MinIO/S3:** originales inmutables, lotes NDJSON y derivados Parquet. El bucket es privado; la API entrega URLs temporales firmadas.
+- **Redis:** cola y resultados transitorios de Celery, no fuente de verdad.
+- **DuckDB/PyArrow:** inferencia, normalización y consultas parametrizadas sobre Parquet. No se acepta SQL del usuario.
+
+No se crea una tabla SQL por dataset. El motivo y sus consecuencias están registrados en [ADR-0002](docs/adr/0002-schema-on-read.md).
+
+## Flujo de publicación
+
+<p align="center">
+  <a href="docs/diagrams/openiotdata-ingestion-flow.html">
+    <img src="docs/assets/readme/openiotdata-ingestion-flow.png" alt="Flujo de publicación de OpenIoTData: borrador, carga, escaneo, procesamiento, mapeo, publicación y reutilización" width="100%">
+  </a>
+</p>
+
+La vista completa del flujo está disponible en [HTML](docs/diagrams/openiotdata-ingestion-flow.html); sus límites y dependencias se explican en la documentación de [arquitectura](docs/ARCHITECTURE.md). Los originales no se mutan; cada publicación crea una versión reproducible.
+
+1. El publicador inicia sesión en Keycloak desde el frontend mediante OIDC Authorization Code + PKCE. El recorrido reproducible por `curl` de [docs/API.md](docs/API.md) usa password grant exclusivamente como atajo local; no representa el flujo del navegador ni debe habilitarse en producción.
+2. Crea un borrador con título, descripción y metadatos mínimos.
+3. Sube CSV, TSV, JSON, NDJSON, Parquet o GeoJSON. Para archivos grandes se solicita una URL firmada y se confirma el checksum SHA-256.
+4. ClamAV examina el recurso; el worker infiere campos, calcula estadísticas limitadas y normaliza a Parquet.
+5. Revisa el esquema y, si aplica, mapea tiempo, latitud, longitud, sensor, variables y unidades.
+6. La publicación exige que el dataset tenga una licencia declarada y que todos los recursos estén listos. La versión publicada queda inmutable; el modelo actual no guarda una licencia independiente por versión.
+7. Cualquier visitante puede buscar, previsualizar, consultar, ubicar en el mapa y descargar.
+
+La interfaz REST detallada está en [docs/API.md](docs/API.md) y el recorrido con `curl` en [docs/INGESTION.md](docs/INGESTION.md).
 
 ## Servicios y puertos locales
 
@@ -71,47 +182,6 @@ Todos los puertos salvo el proxy web están ligados a `127.0.0.1`. La comunicaci
 
 Estas credenciales se importan para facilitar el desarrollo. Nunca deben reutilizarse en una red compartida o producción. Cambie todos los valores de `.env`; no suba ese archivo al repositorio. `DEV_AUTH_BYPASS` permanece en `false` en Compose y la API prohíbe activarlo fuera de `development` o `test`.
 
-## Arquitectura
-
-```mermaid
-flowchart LR
-    Browser[Navegador] --> Nginx[Nginx :8080]
-    Nginx --> Web[Next.js :3000]
-    Nginx --> API[FastAPI :8000]
-    Nginx --> KC[Keycloak /auth]
-    API --> PG[(PostgreSQL + PostGIS)]
-    API --> Redis[(Redis)]
-    API --> MinIO[(MinIO/S3)]
-    Redis --> Worker[Celery worker]
-    Worker --> AV[ClamAV]
-    Worker --> MinIO
-    Worker --> PG
-    Worker --> Compute[PyArrow + DuckDB]
-```
-
-Se usa un monolito modular: una API mantiene los módulos de catálogo, publicación, consulta, identidad y moderación; Celery separa el trabajo intensivo. Esto conserva transacciones y despliegue simples sin impedir extraer workers o el plano de consulta cuando las métricas reales lo exijan.
-
-### Responsabilidad de cada almacenamiento
-
-- **PostgreSQL/PostGIS:** datasets, versiones, recursos, campos inferidos, trabajos, permisos, auditoría y coberturas geográficas.
-- **MinIO/S3:** originales inmutables, lotes NDJSON y derivados Parquet. El bucket es privado; la API entrega URLs temporales firmadas.
-- **Redis:** cola y resultados transitorios de Celery, no fuente de verdad.
-- **DuckDB/PyArrow:** inferencia, normalización y consultas parametrizadas sobre Parquet. No se acepta SQL del usuario.
-
-No se crea una tabla SQL por dataset. El motivo y sus consecuencias están registrados en [ADR-0002](docs/adr/0002-schema-on-read.md).
-
-## Flujo de publicación
-
-1. El publicador inicia sesión en Keycloak desde el frontend mediante OIDC Authorization Code + PKCE. El recorrido reproducible por `curl` de `docs/API.md` usa el password grant exclusivamente como atajo local; no representa el flujo del navegador ni debe habilitarse en producción.
-2. Crea un borrador con título, descripción y metadatos mínimos.
-3. Sube CSV, TSV, JSON, NDJSON, Parquet o GeoJSON. Para archivos grandes se solicita una URL firmada y se confirma el checksum SHA-256.
-4. ClamAV examina el recurso; el worker infiere campos, calcula estadísticas limitadas y normaliza a Parquet.
-5. El usuario revisa el esquema y, si aplica, mapea tiempo, latitud, longitud, sensor, variables y unidades.
-6. La publicación exige que el dataset tenga una licencia declarada y que todos los recursos estén listos. La versión publicada queda inmutable; el modelo actual no guarda una licencia independiente por versión.
-7. Cualquier visitante puede buscar, previsualizar, consultar, ubicar en el mapa y descargar.
-
-La interfaz REST detallada está en [docs/API.md](docs/API.md) y el recorrido con `curl` en [docs/INGESTION.md](docs/INGESTION.md).
-
 ## Ingesta continua por API
 
 Un propietario crea un token limitado al dataset con el scope `records:write`. Luego envía lotes append-only a:
@@ -121,6 +191,8 @@ POST /api/v1/datasets/{dataset_id}/records:batch
 ```
 
 Cada observación exige `observed_at` y un objeto libre `data`; `sensor_id`, `location` GeoJSON y `metadata` son opcionales. Cada solicitud requiere `Idempotency-Key`, acepta como máximo 10.000 registros o 10 MiB y devuelve `202 Accepted`. Repetir la misma clave para el mismo dataset devuelve el trabajo existente sin duplicar datos.
+
+La creación de nuevas versiones, tokens de ingesta, archivo de datasets, reportes y resolución de moderación siguen disponibles exclusivamente mediante la API; no forman parte de la interfaz beta.
 
 ## Desarrollo sin Docker para la aplicación
 
@@ -144,20 +216,19 @@ npm install
 NEXT_PUBLIC_API_URL=/api/v1 NEXT_PUBLIC_DEMO_MODE=false npm run dev
 ```
 
-El modo demo está separado del recorrido real. Para abrir el frontend sin API y con
-datos ilustrativos, use `cd frontend && npm run dev:demo`; nunca se debe usar ese modo
-para verificar la disponibilidad del backend. En el flujo normal, `NEXT_PUBLIC_DEMO_MODE`
-debe permanecer en `false` y los errores de la API se muestran al usuario.
-Si se activa en Compose para una comprobación aislada, reconstruya `frontend` para que
-la variable pública quede incluida en el bundle (`NEXT_PUBLIC_DEMO_MODE=true docker compose build frontend`).
+El modo demo es explícito. Para abrir el frontend sin API y con datos ilustrativos, use `cd frontend && npm run dev:demo`; nunca se debe usar ese modo para verificar la disponibilidad del backend. En el flujo normal, `NEXT_PUBLIC_DEMO_MODE` debe permanecer en `false` y los errores de la API se muestran al usuario.
 
-La pantalla de inicio de sesión de Keycloak permite crear una cuenta local mediante
-“Crear cuenta”. El registro está abierto en la configuración de desarrollo; las cuentas
-locales pueden publicar datasets y el catálogo sigue siendo anónimo para lectura.
+Si se activa en Compose para una comprobación aislada, reconstruya `frontend` para que la variable pública quede incluida en el bundle:
+
+```bash
+NEXT_PUBLIC_DEMO_MODE=true docker compose build frontend
+```
+
+La pantalla de inicio de sesión de Keycloak permite crear una cuenta local mediante “Crear cuenta”. Las cuentas locales pueden publicar datasets y el catálogo sigue siendo anónimo para lectura.
 
 Para el proxy de mismo origen, use la pila Compose. El frontend compilado recibe `NEXT_PUBLIC_API_URL=/api/v1`; Nginx conserva la URI al enviarla a FastAPI, por lo que nunca se duplica `/api/v1`.
 
-Pruebas locales:
+## Pruebas locales
 
 ```bash
 make lint
@@ -168,9 +239,13 @@ docker compose config --quiet
 bash -n scripts/*.sh
 ```
 
-`make e2e-ui` necesita la pila levantada con `make bootstrap` y los navegadores de
-Playwright instalados (`cd frontend && npx playwright install chromium`). La pila local
-reserva aproximadamente 10–12 GB de RAM, principalmente por ClamAV.
+`make e2e-ui` necesita la pila levantada con `make bootstrap` y los navegadores de Playwright instalados:
+
+```bash
+cd frontend && npx playwright install chromium
+```
+
+La pila local reserva aproximadamente 10–12 GB de RAM, principalmente por ClamAV.
 
 ## Seguridad y gobierno de datos
 
@@ -228,11 +303,6 @@ La configuración Compose es deliberadamente local. Antes de publicar en Interne
 
 La transición a ClickHouse, Trino o tiles vectoriales sólo se justifica con datos de volumen y concurrencia. La API pública debe mantenerse estable al cambiar el motor.
 
-La beta de interfaz cubre registro, publicación, descubrimiento, consulta, mapa y
-descarga. La creación de nuevas versiones, tokens de ingesta, archivo de datasets,
-reportes y resolución de moderación siguen disponibles exclusivamente mediante la API;
-no forman parte del cierre de UI.
-
 ## Estructura
 
 ```text
@@ -240,7 +310,7 @@ backend/                 FastAPI, modelos, workers y migraciones
 frontend/                Next.js y experiencia del catálogo
 infra/                   Nginx, realm Keycloak e inicialización PostGIS
 scripts/                 bootstrap, seed, checks y backups
-docs/                    API, ingesta, políticas y decisiones
+docs/                    API, ingesta, diagramas, políticas y decisiones
 docker-compose.yml       pila local completa
 ```
 
