@@ -25,17 +25,15 @@ Salida: [VALIDATION.md](VALIDATION.md) registra una ejecución integral aprobada
 Salida: los flujos pasan dentro de `make e2e-ui` y API/handoff ya no los describen
 como capacidades «sólo API».
 
-## 2. Integración de referencia y observabilidad — siguiente
+## 2. Observabilidad y resiliencia — siguiente
 
-1. Integrar el sistema de monitoreo acústico como primer productor real controlado,
-   conservando datos sintéticos o anonimizados en desarrollo.
-2. Definir métricas y SLO locales para jobs, latencia de consulta, tasa de fallo,
+1. Definir métricas y SLO locales para jobs, latencia de consulta, tasa de fallo,
    tamaño de cola y crecimiento del almacenamiento.
-3. Añadir reconciliación de jobs pendientes y detección de objetos huérfanos.
-4. Ensayar backup/restauración completa y documentar RPO/RTO propuestos.
+2. Añadir reconciliación de jobs pendientes y detección de objetos huérfanos.
+3. Ensayar backup/restauración completa y documentar RPO/RTO propuestos.
 
-Salida: una integración automatizada, dashboards operativos mínimos y una restauración
-verificada sin cambiar el motor analítico por anticipación.
+Salida: dashboards operativos mínimos y una restauración verificada sin cambiar el
+motor analítico por anticipación.
 
 ## 3. Preparación para entorno compartido — no iniciada
 

@@ -44,9 +44,9 @@ Visitors arrive through search, a shared dataset URL or the map. Publishers work
 
 The confirmed name is OpenIoTData. The interface is a technical, editorial catalog rather than a literal Kaggle copy or a generic real-time monitoring dashboard. Language is Spanish-first, precise, calm and free of inflated claims.
 
-## Evidence on Hand
+## Evidence Constraints
 
-The sibling Sound Monitoring System provides real architectural and interaction evidence for FastAPI, PostgreSQL, Docker, MapLibre/deck.gl, time-series queries, station tokens and a future first integration. No customer counts, usage metrics, institutional endorsements or scientific validation claims are available and none may be fabricated. Demonstration content must be labelled as illustrative.
+No customer counts, usage metrics, institutional endorsements or scientific validation claims are available and none may be fabricated. Demonstration content must be labelled as illustrative.
 
 ## Product Principles
 
