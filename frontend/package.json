@@ -2,6 +2,9 @@
   "name": "openiotdata-frontend",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev",
     "dev:demo": "NEXT_PUBLIC_DEMO_MODE=true NEXT_PUBLIC_API_URL= next dev",

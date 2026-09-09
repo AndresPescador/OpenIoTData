@@ -358,6 +358,17 @@ class ApiTokenCreated(BaseModel):
     expires_at: datetime | None
 
 
+class ApiTokenRead(BaseModel):
+    id: str
+    name: str
+    prefix: str
+    scopes: list[str]
+    expires_at: datetime | None
+    last_used_at: datetime | None
+    revoked_at: datetime | None
+    created_at: datetime
+
+
 class ReportCreate(StrictModel):
     reason: str = Field(min_length=3, max_length=100)
     details: str = Field(default="", max_length=5_000)

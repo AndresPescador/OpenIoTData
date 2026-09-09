@@ -33,6 +33,7 @@ from app.db.session import get_session
 from app.schemas import (
     ApiTokenCreate,
     ApiTokenCreated,
+    ApiTokenRead,
     ConfirmResourceRequest,
     CurrentUser,
     DatasetCreate,
@@ -645,6 +646,35 @@ async def issue_api_token(
         scopes=token.scopes,
         expires_at=token.expires_at,
     )
+
+
+@router.get("/datasets/{dataset_id}/tokens", response_model=list[ApiTokenRead])
+async def list_api_tokens(
+    dataset_id: str,
+    user: CurrentUser = Depends(require_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[ApiTokenRead]:
+    await _owned_dataset(session, dataset_id, user)
+    tokens = list(
+        await session.scalars(
+            select(ApiToken)
+            .where(ApiToken.dataset_id == dataset_id)
+            .order_by(ApiToken.created_at.desc())
+        )
+    )
+    return [
+        ApiTokenRead(
+            id=token.id,
+            name=token.name,
+            prefix=token.prefix,
+            scopes=token.scopes,
+            expires_at=token.expires_at,
+            last_used_at=token.last_used_at,
+            revoked_at=token.revoked_at,
+            created_at=token.created_at,
+        )
+        for token in tokens
+    ]
 
 
 @router.delete("/datasets/{dataset_id}/tokens/{token_id}", status_code=204)

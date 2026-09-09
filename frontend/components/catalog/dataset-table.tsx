@@ -10,15 +10,15 @@ import { cn, formatDate, formatNumber } from "@/lib/utils";
 
 const helper = createColumnHelper<Dataset>();
 
-export function DatasetTable({ datasets, selectedSlug, onSelect }: { datasets: Dataset[]; selectedSlug?: string; onSelect?: (slug: string) => void }) {
+export function DatasetTable({ datasets, selectedSlug, onSelect, management = false }: { datasets: Dataset[]; selectedSlug?: string; onSelect?: (slug: string) => void; management?: boolean }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const columns = [
     helper.accessor("title", {
       header: "Dataset",
       cell: ({ row }) => (
         <div className="dataset-name-cell">
-          <Link href={`/datasets/${row.original.slug}`}>{row.original.title}</Link>
-          <span>{row.original.location?.name ?? "Sin ubicación"} · {row.original.organization}</span>
+          <Link href={management ? `/my-datasets/${row.original.id}` : `/datasets/${row.original.slug}`}>{row.original.title}</Link>
+          <span>{row.original.location?.name ?? "Sin ubicación"} · {management ? "Administrar" : row.original.organization}</span>
         </div>
       ),
     }),
@@ -70,7 +70,7 @@ export function DatasetTable({ datasets, selectedSlug, onSelect }: { datasets: D
             <div>
               <Badge>{dataset.sensorType}</Badge><span className="tabular">{formatNumber(dataset.rows)} filas</span>
             </div>
-            <h3><Link href={`/datasets/${dataset.slug}`}>{dataset.title}</Link></h3>
+            <h3><Link href={management ? `/my-datasets/${dataset.id}` : `/datasets/${dataset.slug}`}>{dataset.title}</Link></h3>
             <p><MapPin aria-hidden="true" size={15} /> {dataset.location?.name ?? "Sin ubicación"}</p>
             <dl>
               <div><dt>Licencia</dt><dd>{dataset.license}</dd></div>

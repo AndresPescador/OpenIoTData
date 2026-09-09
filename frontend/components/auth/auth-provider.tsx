@@ -7,6 +7,7 @@ interface AuthUser {
   subject: string;
   displayName: string;
   email?: string;
+  roles: string[];
 }
 
 interface AuthContextValue {
@@ -23,10 +24,15 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 function userFromClaims(claims?: KeycloakTokenParsed): AuthUser | undefined {
   if (!claims?.sub) return undefined;
+  const realmAccess = claims.realm_access as { roles?: unknown } | undefined;
+  const roles = Array.isArray(realmAccess?.roles)
+    ? realmAccess.roles.filter((role): role is string => typeof role === "string")
+    : [];
   return {
     subject: claims.sub,
     displayName: String(claims.preferred_username || claims.name || claims.sub),
     email: typeof claims.email === "string" ? claims.email : undefined,
+    roles,
   };
 }
 
@@ -35,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Omit<AuthContextValue, "login" | "register" | "logout">>(() => {
     if (process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS !== "true") return { ready: false, authenticated: false, mode: "anonymous" };
     const name = process.env.NEXT_PUBLIC_DEV_USER || "local-developer";
-    return { ready: true, authenticated: true, mode: "development-bypass", user: { subject: name, displayName: name } };
+    return { ready: true, authenticated: true, mode: "development-bypass", user: { subject: name, displayName: name, roles: ["publisher", "moderator"] } };
   });
 
   useEffect(() => {

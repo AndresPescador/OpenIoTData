@@ -31,6 +31,7 @@ dev = [
   "pytest>=8.3,<10",
   "pytest-asyncio>=0.25,<2",
   "pytest-cov>=6,<8",
+  "pytest-timeout>=2.4,<3",
   "ruff>=0.9,<1",
 ]
 
@@ -41,6 +42,8 @@ packages = ["app"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-q"
+timeout = 60
+faulthandler_timeout = 45
 
 [tool.coverage.run]
 # SQLAlchemy's async driver switches through greenlets; enabling its coverage

@@ -61,6 +61,9 @@ export function SiteHeader() {
           <button type="button" className="nav-utility" aria-label="Idioma actual: Español"><Globe2 aria-hidden="true" size={18} /> ES</button>
           {auth.authenticated ? (
             <>
+              {auth.user?.roles.some((role) => role === "moderator" || role === "admin") ? (
+                <Link href="/admin" className={cn("nav-utility", pathname === "/admin" && "is-current")} aria-current={pathname === "/admin" ? "page" : undefined} onClick={() => setOpen(false)}>Moderación</Link>
+              ) : null}
               <Link href="/my-datasets" className="account-link" aria-label={`Abrir espacio de ${auth.user?.displayName ?? "usuario"}`} title={auth.user?.displayName} onClick={() => setOpen(false)}>
                 <span aria-hidden="true">{(auth.user?.displayName ?? "U").split(/[\s._-]+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span><span className="sr-only">Mi espacio</span>
               </Link>

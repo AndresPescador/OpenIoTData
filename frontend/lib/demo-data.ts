@@ -262,7 +262,7 @@ export const demoReadings: SensorReading[] = [
 ];
 
 export const demoModeration: ModerationItem[] = [
-  { id: "M-104", dataset: "Sensores de aforo peatonal", owner: "Laboratorio ciudadano", reason: "Revisar posible identificador personal", status: "Pendiente", reportedAt: "2026-08-23 14:10" },
-  { id: "M-103", dataset: "Estaciones meteorológicas escolares", owner: "Aula abierta", reason: "Archivo no coincide con el formato declarado", status: "En cuarentena", reportedAt: "2026-08-22 09:42" },
-  { id: "M-102", dataset: "Ruido de corredores viales", owner: "Nodo acústico", reason: "Coordenada sensible reportada", status: "Revisado", reportedAt: "2026-08-21 18:07" },
+  { id: "M-104", datasetId: "demo-aforo", dataset: "Sensores de aforo peatonal", owner: "Laboratorio ciudadano", reason: "Privacidad", details: "Revisar posible identificador personal", state: "open", status: "Pendiente", reportedAt: "2026-08-23 14:10" },
+  { id: "M-103", datasetId: "demo-clima", dataset: "Estaciones meteorológicas escolares", owner: "Aula abierta", reason: "Formato", details: "Archivo no coincide con el formato declarado", state: "quarantined", status: "En cuarentena", reportedAt: "2026-08-22 09:42" },
+  { id: "M-102", datasetId: "demo-ruido", dataset: "Ruido de corredores viales", owner: "Nodo acústico", reason: "Ubicación sensible", details: "Coordenada sensible reportada", state: "resolved", status: "Revisado", reportedAt: "2026-08-21 18:07" },
 ];

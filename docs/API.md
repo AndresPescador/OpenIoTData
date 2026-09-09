@@ -161,16 +161,20 @@ curl --fail --silent --show-error -X POST "$API/datasets/$DATASET_ID/tokens" \
   -d '{"name":"gateway-laboratorio","scopes":["records:write"]}'
 ```
 
-El secreto `token` se devuelve una sola vez. Guárdelo fuera de logs y repositorios. Para revocar: `DELETE /datasets/{dataset_id}/tokens/{token_id}`.
+El secreto `token` se devuelve una sola vez. Guárdelo fuera de logs y repositorios.
+`GET /datasets/{dataset_id}/tokens` lista exclusivamente id, nombre, prefijo, scopes y
+fechas de creación, expiración, último uso y revocación; nunca contiene `token` ni su
+hash. Para revocar: `DELETE /datasets/{dataset_id}/tokens/{token_id}`.
 
 El lote completo está documentado en [INGESTION.md](INGESTION.md).
 
-## Capacidades fuera de la interfaz beta
+## Gestión desde la interfaz beta
 
-La UI local cubre el recorrido de registro, publicación, catálogo, consulta, mapa y
-descarga. La API conserva además la gestión avanzada: nuevas versiones, tokens de
-ingesta y su revocación, archivo de datasets, reportes comunitarios y resolución de
-moderación. Estas operaciones no tienen una pantalla dedicada en esta beta.
+Además de registro, publicación, catálogo, consulta, mapa y descarga, la UI local
+permite a la persona propietaria crear versiones con changelog, cargar y publicar un
+nuevo snapshot, administrar tokens de ingesta y archivar con confirmación. La ruta
+`/admin` lista y resuelve reportes para roles `moderator` o `admin`. La creación de un
+reporte comunitario continúa disponible mediante `POST /datasets/{slug}/reports`.
 
 ## Estados, paginación y errores
 

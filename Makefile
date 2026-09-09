@@ -4,7 +4,7 @@ BACKEND_PYTHON ?= $(shell if test -x "$(CURDIR)/backend/.venv312/bin/python"; th
 
 .DEFAULT_GOAL := help
 
-.PHONY: help bootstrap config up wait seed check e2e e2e-ui verify ps logs down restart migrate test lint build backup
+.PHONY: help bootstrap config up wait seed check setup-e2e e2e e2e-ui validate-beta verify ps logs down restart migrate test lint build backup
 
 help: ## Muestra los comandos disponibles
 	@awk 'BEGIN {FS = ":.*## "; printf "OpenIoTData — comandos locales\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -27,11 +27,17 @@ seed: ## Carga el catálogo ilustrativo de forma idempotente
 check: ## Ejecuta comprobaciones de infraestructura y endpoints
 	./scripts/check.sh
 
+setup-e2e: ## Instala Chromium para las pruebas Playwright
+	cd frontend && npx playwright install chromium
+
 e2e: ## Recorre OIDC, publicación, consultas, descarga y batch idempotente
 	./scripts/e2e-local.sh
 
 e2e-ui: ## Recorre el flujo crítico desde el navegador (requiere la pila levantada)
 	cd frontend && npm run e2e
+
+validate-beta: ## Ejecuta la puerta canónica completa de la beta local
+	./scripts/validate-beta.sh
 
 verify: ## Ejecuta validaciones locales de código, build y configuración
 	$(MAKE) config

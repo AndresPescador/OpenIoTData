@@ -110,4 +110,44 @@ describe("adaptadores del API", () => {
 
     await expect(getCatalog()).rejects.toThrow("API caída");
   });
+
+  it("gestiona versiones y tokens sin volver a exponer secretos listados", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.test/api/v1");
+    vi.stubEnv("NEXT_PUBLIC_DEMO_MODE", "false");
+    const detail = {
+      ...backendSummary,
+      versions: [{ id: "version-1", number: 1, status: "published", changelog: "Inicial", is_current: true, published_at: backendSummary.published_at, resources: [], semantic_mappings: [], spatial_coverage: backendSummary.spatial_coverage, temporal_coverage: backendSummary.temporal_coverage }],
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ id: "token-1", name: "Gateway", prefix: "abcd1234", scopes: ["records:write"], expires_at: null, last_used_at: null, revoked_at: null, created_at: "2026-09-08T12:00:00Z" }]), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "token-2", name: "Nodo", prefix: "efgh5678", token: "oidt_efgh5678_secret", scopes: ["records:write"], expires_at: null }), { status: 201, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { getDatasetManagement, getApiTokens, issueApiToken, revokeApiToken } = await import("@/lib/api");
+
+    const managed = await getDatasetManagement("dataset-1");
+    const tokens = await getApiTokens("dataset-1");
+    const issued = await issueApiToken({ datasetId: "dataset-1", name: "Nodo" });
+    await revokeApiToken("dataset-1", "token-1");
+
+    expect(managed.data.versions[0]).toMatchObject({ id: "version-1", number: 1, status: "published" });
+    expect(tokens.data[0]).toMatchObject({ prefix: "abcd1234", revokedAt: null });
+    expect(tokens.data[0]).not.toHaveProperty("token");
+    expect(issued.data.token).toBe("oidt_efgh5678_secret");
+    expect(fetchMock.mock.calls[3][1]).toMatchObject({ method: "DELETE" });
+  });
+
+  it("actualiza decisiones de moderación con el contrato del backend", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.test/api/v1");
+    vi.stubEnv("NEXT_PUBLIC_DEMO_MODE", "false");
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "report-1", dataset_id: "dataset-1", dataset_title: "Temperatura", dataset_owner: "owner", reporter_subject: null, reason: "Privacidad", details: "Revisar ubicación", status: "resolved", created_at: "2026-09-08T12:00:00Z" }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { updateModerationReport } = await import("@/lib/api");
+
+    const result = await updateModerationReport("report-1", "resolved");
+
+    expect(result.data).toMatchObject({ datasetId: "dataset-1", state: "resolved", status: "Revisado" });
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ status: "resolved" });
+  });
 });

@@ -150,10 +150,17 @@ async def test_owner_can_manage_draft_versions_and_revoke_tokens(
     assert token_response.status_code == 201
     token_id = token_response.json()["id"]
     assert token_response.json()["token"].startswith("oidt_")
+    listed = await client.get(f"/api/v1/datasets/{dataset_id}/tokens", headers=owner)
+    assert listed.status_code == 200
+    assert listed.json()[0]["id"] == token_id
+    assert listed.json()[0]["prefix"] == token_response.json()["prefix"]
+    assert "token" not in listed.json()[0]
     revoked = await client.delete(
         f"/api/v1/datasets/{dataset_id}/tokens/{token_id}", headers=owner
     )
     assert revoked.status_code == 204
+    relisted = await client.get(f"/api/v1/datasets/{dataset_id}/tokens", headers=owner)
+    assert relisted.json()[0]["revoked_at"] is not None
     assert (
         await client.delete(f"/api/v1/datasets/{dataset_id}/tokens/not-found", headers=owner)
     ).status_code == 404

@@ -10,7 +10,7 @@ const keycloak = vi.hoisted(() => ({
   logout: vi.fn().mockResolvedValue(undefined),
   updateToken: vi.fn().mockResolvedValue(false),
   token: undefined as string | undefined,
-  tokenParsed: undefined,
+  tokenParsed: undefined as import("keycloak-js").KeycloakTokenParsed | undefined,
   onTokenExpired: undefined as (() => Promise<void>) | undefined,
   onAuthLogout: undefined as (() => void) | undefined,
 }));
@@ -23,7 +23,7 @@ import { AuthProvider, useAuth } from "@/components/auth/auth-provider";
 
 function AuthActions() {
   const auth = useAuth();
-  return <><button type="button" onClick={() => void auth.login()}>Ingresar</button><button type="button" onClick={() => void auth.register()}>Crear cuenta</button><button type="button" onClick={() => void auth.logout()}>Salir</button></>;
+  return <><span>{auth.user?.roles.join(",")}</span><button type="button" onClick={() => void auth.login()}>Ingresar</button><button type="button" onClick={() => void auth.register()}>Crear cuenta</button><button type="button" onClick={() => void auth.logout()}>Salir</button></>;
 }
 
 describe("AuthProvider", () => {
@@ -34,8 +34,11 @@ describe("AuthProvider", () => {
 
   it("expone registro y login mediante Keycloak", async () => {
     vi.stubEnv("NEXT_PUBLIC_DEV_AUTH_BYPASS", "false");
+    keycloak.tokenParsed = { sub: "moderator-1", preferred_username: "moderator", realm_access: { roles: ["publisher", "moderator"] } };
+    keycloak.init.mockResolvedValueOnce(true);
     render(<AuthProvider><AuthActions /></AuthProvider>);
     await waitFor(() => expect(screen.getByRole("button", { name: "Crear cuenta" })).toBeEnabled());
+    expect(screen.getByText("publisher,moderator")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
     await userEvent.click(screen.getByRole("button", { name: "Ingresar" }));

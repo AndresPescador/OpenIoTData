@@ -9,7 +9,7 @@ operadores permitidos por la API.
 
 ```bash
 python3.12 -m venv .venv
-.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/pip install -r requirements-dev.lock
 cp .env.example .env
 .venv/bin/alembic upgrade head
 .venv/bin/uvicorn app.main:app --reload --port 8000
@@ -35,6 +35,8 @@ OIDC contra el JWKS de Keycloak.
   públicos al publicar ese snapshot; nunca modifican una versión publicada.
 - `GET .../versions/{number}` y la descarga versionada mantienen accesibles snapshots previos.
 - `GET/PATCH /api/v1/admin/reports` ofrece la cola mínima de moderación.
+- `GET/POST /api/v1/datasets/{id}/tokens` lista metadatos seguros o emite una
+  credencial; el secreto sólo aparece en la respuesta de creación.
 
 OpenAPI está en `/api/v1/docs` y `/api/v1/openapi.json`.
 
@@ -63,6 +65,11 @@ worker debe ejecutarse con límites de memoria/CPU y almacenamiento temporal en 
 ruff check app alembic tests
 pytest -q
 ```
+
+Cada test tiene un límite de 60 segundos y Pytest vuelca los stacks a los 45 segundos,
+por lo que un bloqueo deja diagnóstico antes de fallar. CI instala
+`requirements-dev.lock`; `requirements*.txt` se conservan como especificación de
+rangos para actualizar el conjunto resuelto de forma deliberada.
 
 La matriz de pruebas cubre los seis formatos anunciados (CSV, TSV, JSON, NDJSON,
 Parquet y GeoJSON). El recorrido de navegador y la prueba contra ClamAV/MinIO se

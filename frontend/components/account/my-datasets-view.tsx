@@ -30,7 +30,7 @@ export function MyDatasetsView() {
           </section>
           <section className="account-section">
             <div className="section-heading"><div><h2>Publicaciones</h2><p>Las versiones publicadas son inmutables; crea una nueva para actualizar datos.</p></div><Badge>{query.data.data.length}</Badge></div>
-            <DatasetTable datasets={query.data.data} />
+            <DatasetTable datasets={query.data.data} management />
           </section>
           <section className="token-band">
             <KeyRound aria-hidden="true" size={25} />

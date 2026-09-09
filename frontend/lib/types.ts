@@ -135,9 +135,13 @@ export interface DraftPayload {
 
 export interface ModerationItem {
   id: string;
+  datasetId: string;
   dataset: string;
   owner: string;
+  reporter?: string;
   reason: string;
+  details?: string;
+  state: "open" | "reviewing" | "resolved" | "dismissed" | "quarantined";
   status: "Pendiente" | "En cuarentena" | "Revisado";
   reportedAt: string;
 }

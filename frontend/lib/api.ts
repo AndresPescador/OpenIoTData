@@ -477,6 +477,65 @@ export interface JobStatusView {
   error?: string;
 }
 
+export interface ManagedResourceView {
+  id: string;
+  name: string;
+  format: string;
+  status: string;
+  rows: number;
+}
+
+export interface ManagedVersionView {
+  id: string;
+  number: number;
+  status: string;
+  changelog: string;
+  isCurrent: boolean;
+  publishedAt: string | null;
+  resources: ManagedResourceView[];
+}
+
+export interface ManagedDatasetView {
+  dataset: Dataset;
+  versions: ManagedVersionView[];
+}
+
+export interface ApiTokenRecord {
+  id: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  expiresAt: string | null;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+export interface IssuedApiToken extends Omit<ApiTokenRecord, "lastUsedAt" | "revokedAt" | "createdAt"> {
+  token: string;
+}
+
+function adaptManagedDataset(payload: BackendDatasetDetail): ManagedDatasetView {
+  return {
+    dataset: adaptDataset(payload),
+    versions: payload.versions.map((version) => ({
+      id: version.id,
+      number: version.number,
+      status: version.status,
+      changelog: version.changelog,
+      isCurrent: version.is_current,
+      publishedAt: version.published_at,
+      resources: version.resources.map((resource) => ({
+        id: resource.id,
+        name: resource.original_filename || resource.name,
+        format: formatResource(resource.format),
+        status: resource.status,
+        rows: resource.row_count ?? resource.schema_profile?.row_count ?? 0,
+      })),
+    })),
+  };
+}
+
 export async function createDraft({ payload, file }: { payload: DraftPayload; file: File }): Promise<ApiEnvelope<RemoteDraft>> {
   try {
     if (!configuredApiUrl && allowDemoFallback) throw new Error("demo");
@@ -575,15 +634,112 @@ export async function getMyDatasets(): Promise<ApiEnvelope<Dataset[]>> {
   }
 }
 
+export async function getDatasetManagement(datasetId: string): Promise<ApiEnvelope<ManagedDatasetView>> {
+  try {
+    if (!configuredApiUrl && allowDemoFallback) throw new Error("demo");
+    const payload = await request<BackendDatasetDetail>(`/datasets/${datasetId}/manage`);
+    return { data: adaptManagedDataset(payload), meta: { source: "api" } };
+  } catch (error) {
+    if (!allowDemoFallback) throw error;
+    const dataset = demoDatasets.find((item) => item.id === datasetId) ?? demoDatasets[0];
+    return { data: { dataset, versions: [{ id: "version-demo-001", number: Number(dataset.version), status: dataset.status, changelog: "Versión demostrativa", isCurrent: true, publishedAt: dataset.publishedAt, resources: dataset.resources.map((resource) => ({ id: resource.id, name: resource.name, format: resource.format, status: resource.status, rows: resource.rows })) }] }, meta: { source: "demo", notice: demoNotice } };
+  }
+}
+
+export async function createDatasetVersion(datasetId: string, changelog: string): Promise<ApiEnvelope<ManagedDatasetView>> {
+  try {
+    if (!configuredApiUrl && allowDemoFallback) throw new Error("demo");
+    const payload = await request<BackendDatasetDetail>(`/datasets/${datasetId}/versions`, { method: "POST", body: JSON.stringify({ changelog }) });
+    return { data: adaptManagedDataset(payload), meta: { source: "api" } };
+  } catch (error) {
+    if (!allowDemoFallback) throw error;
+    const current = (await getDatasetManagement(datasetId)).data;
+    const number = Math.max(...current.versions.map((version) => version.number), 0) + 1;
+    return { data: { ...current, versions: [...current.versions, { id: `version-demo-${number}`, number, status: "draft", changelog, isCurrent: false, publishedAt: null, resources: [] }] }, meta: { source: "demo", notice: demoNotice } };
+  }
+}
+
+export async function uploadVersionResource({ datasetId, versionId, file }: { datasetId: string; versionId: string; file: File }): Promise<ApiEnvelope<{ resourceId: string; jobId: string }>> {
+  try {
+    if (!configuredApiUrl && allowDemoFallback) throw new Error("demo");
+    const form = new FormData();
+    form.append("file", file, file.name);
+    const payload = await requestForm<{ resource: { id: string }; job: { id: string } }>(`/datasets/${datasetId}/versions/${versionId}/resources`, form);
+    return { data: { resourceId: payload.resource.id, jobId: payload.job.id }, meta: { source: "api" } };
+  } catch (error) {
+    if (!allowDemoFallback) throw error;
+    await wait(500);
+    return { data: { resourceId: "resource-demo-new", jobId: "job-demo-new" }, meta: { source: "demo", notice: demoNotice } };
+  }
+}
+
+export async function publishDatasetVersion(datasetId: string, versionId: string): Promise<ApiEnvelope<ManagedDatasetView>> {
+  try {
+    if (!configuredApiUrl && allowDemoFallback) throw new Error("demo");
+    const payload = await request<BackendDatasetDetail>(`/datasets/${datasetId}/versions/${versionId}/publish`, { method: "POST" });
+    return { data: adaptManagedDataset(payload), meta: { source: "api" } };
+  } catch (error) {
+    if (!allowDemoFallback) throw error;
+    return getDatasetManagement(datasetId);
+  }
+}
+
+export async function archiveDataset(datasetId: string): Promise<ApiEnvelope<void>> {
+  if (!configuredApiUrl && allowDemoFallback) return { data: undefined, meta: { source: "demo", notice: demoNotice } };
+  await request<void>(`/datasets/${datasetId}/archive`, { method: "POST" });
+  return { data: undefined, meta: { source: "api" } };
+}
+
+export async function getApiTokens(datasetId: string): Promise<ApiEnvelope<ApiTokenRecord[]>> {
+  try {
+    if (!configuredApiUrl && allowDemoFallback) throw new Error("demo");
+    const payload = await request<Array<{ id: string; name: string; prefix: string; scopes: string[]; expires_at: string | null; last_used_at: string | null; revoked_at: string | null; created_at: string }>>(`/datasets/${datasetId}/tokens`);
+    return { data: payload.map((token) => ({ id: token.id, name: token.name, prefix: token.prefix, scopes: token.scopes, expiresAt: token.expires_at, lastUsedAt: token.last_used_at, revokedAt: token.revoked_at, createdAt: token.created_at })), meta: { source: "api" } };
+  } catch (error) {
+    if (!allowDemoFallback) throw error;
+    return { data: [], meta: { source: "demo", notice: demoNotice } };
+  }
+}
+
+export async function issueApiToken({ datasetId, name, expiresAt }: { datasetId: string; name: string; expiresAt?: string }): Promise<ApiEnvelope<IssuedApiToken>> {
+  try {
+    if (!configuredApiUrl && allowDemoFallback) throw new Error("demo");
+    const payload = await request<{ id: string; name: string; prefix: string; token: string; scopes: string[]; expires_at: string | null }>(`/datasets/${datasetId}/tokens`, { method: "POST", body: JSON.stringify({ name, scopes: ["records:write"], expires_at: expiresAt || null }) });
+    return { data: { id: payload.id, name: payload.name, prefix: payload.prefix, token: payload.token, scopes: payload.scopes, expiresAt: payload.expires_at }, meta: { source: "api" } };
+  } catch (error) {
+    if (!allowDemoFallback) throw error;
+    return { data: { id: "token-demo", name, prefix: "demo1234", token: "oidt_demo1234_secret-visible-once", scopes: ["records:write"], expiresAt: expiresAt || null }, meta: { source: "demo", notice: demoNotice } };
+  }
+}
+
+export async function revokeApiToken(datasetId: string, tokenId: string): Promise<ApiEnvelope<void>> {
+  if (!configuredApiUrl && allowDemoFallback) return { data: undefined, meta: { source: "demo", notice: demoNotice } };
+  await request<void>(`/datasets/${datasetId}/tokens/${tokenId}`, { method: "DELETE" });
+  return { data: undefined, meta: { source: "api" } };
+}
+
 export async function getModerationQueue(): Promise<ApiEnvelope<ModerationItem[]>> {
   try {
     if (!configuredApiUrl && allowDemoFallback) throw new Error("demo");
-    const payload = await request<Array<{ id: string; dataset_title: string; dataset_owner: string; reason: string; details: string; status: string; created_at: string }>>("/admin/reports");
-    const statusLabel = (status: string): ModerationItem["status"] => status === "resolved" || status === "closed" ? "Revisado" : status === "quarantined" ? "En cuarentena" : "Pendiente";
-    return { data: payload.map((item) => ({ id: item.id, dataset: item.dataset_title, owner: item.dataset_owner, reason: item.details ? `${item.reason}: ${item.details}` : item.reason, status: statusLabel(item.status), reportedAt: item.created_at })), meta: { source: "api" } };
+    const payload = await request<Array<{ id: string; dataset_id: string; dataset_title: string; dataset_owner: string; reporter_subject: string | null; reason: string; details: string; status: string; created_at: string }>>("/admin/reports");
+    const statusLabel = (status: string): ModerationItem["status"] => status === "resolved" || status === "dismissed" ? "Revisado" : status === "quarantined" ? "En cuarentena" : "Pendiente";
+    return { data: payload.map((item) => ({ id: item.id, datasetId: item.dataset_id, dataset: item.dataset_title, owner: item.dataset_owner, reporter: item.reporter_subject ?? undefined, reason: item.reason, details: item.details, state: item.status as ModerationItem["state"], status: statusLabel(item.status), reportedAt: item.created_at })), meta: { source: "api" } };
   } catch (error) {
     if (!allowDemoFallback) throw error;
     await wait();
     return { data: demoModeration, meta: { source: "demo", notice: demoNotice } };
+  }
+}
+
+export async function updateModerationReport(reportId: string, status: "reviewing" | "resolved" | "dismissed"): Promise<ApiEnvelope<ModerationItem>> {
+  try {
+    if (!configuredApiUrl && allowDemoFallback) throw new Error("demo");
+    const item = await request<{ id: string; dataset_id: string; dataset_title: string; dataset_owner: string; reporter_subject: string | null; reason: string; details: string; status: string; created_at: string }>(`/admin/reports/${reportId}`, { method: "PATCH", body: JSON.stringify({ status }) });
+    const statusLabel: ModerationItem["status"] = item.status === "resolved" || item.status === "dismissed" ? "Revisado" : "Pendiente";
+    return { data: { id: item.id, datasetId: item.dataset_id, dataset: item.dataset_title, owner: item.dataset_owner, reporter: item.reporter_subject ?? undefined, reason: item.reason, details: item.details, state: item.status as ModerationItem["state"], status: statusLabel, reportedAt: item.created_at }, meta: { source: "api" } };
+  } catch (error) {
+    if (!allowDemoFallback) throw error;
+    const current = demoModeration.find((item) => item.id === reportId) ?? demoModeration[0];
+    return { data: { ...current, state: status, status: status === "reviewing" ? "Pendiente" : "Revisado" }, meta: { source: "demo", notice: demoNotice } };
   }
 }

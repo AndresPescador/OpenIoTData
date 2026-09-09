@@ -83,6 +83,22 @@
           "temporary": false
         }
       ]
+    },
+    {
+      "username": "demo.moderator",
+      "firstName": "Moderador",
+      "lastName": "Demostración",
+      "email": "moderator@example.invalid",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["publisher", "moderator"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "moderator-local-only",
+          "temporary": false
+        }
+      ]
     }
   ]
 }

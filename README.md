@@ -14,6 +14,8 @@
 <a href="#tecnologías">Tecnologías</a> ·
 <a href="#arquitectura">Arquitectura</a> ·
 <a href="docs/API.md">API</a> ·
+<a href="docs/HANDOFF.md">Handoff</a> ·
+<a href="docs/ROADMAP.md">Roadmap</a> ·
 <a href="CONTRIBUTING.md">Contribuir</a> ·
 <a href="LICENSE">Licencia</a>
 
@@ -37,7 +39,9 @@ Requisitos:
 
 - Docker Engine 24+ y Docker Compose v2.20+.
 - Aproximadamente 10–12 GB de RAM disponibles; ClamAV reserva hasta 3 GB porque cargar y actualizar firmas produce picos importantes.
+- Python 3.12 y Node.js 22 para la puerta de calidad local.
 - `curl` y `make` para los comandos auxiliares; `jq` y `sha256sum` para `make e2e`.
+- Chromium de Playwright, instalable una vez con `make setup-e2e`.
 
 Arranque completo:
 
@@ -61,6 +65,8 @@ make seed     # recargar datos ilustrativos, sin duplicarlos
 make check    # comprobar Compose y endpoints
 make e2e      # publicar/consultar/descargar un dataset temporal y archivarlo
 make e2e-ui   # probar el recorrido crítico desde Chromium y móvil
+make setup-e2e # instalar Chromium de Playwright
+make validate-beta # ejecutar la validación integral y la salud final
 make verify   # lint, tipos, pruebas, build y configuración
 make logs     # seguir logs
 make down     # detener sin borrar volúmenes
@@ -176,6 +182,7 @@ Todos los puertos salvo el proxy web están ligados a `127.0.0.1`. La comunicaci
 | Uso | Usuario | Contraseña |
 |---|---|---|
 | Publicador Keycloak | `demo.publisher` | `publisher-local-only` |
+| Moderador Keycloak | `demo.moderator` | `moderator-local-only` |
 | Administrador Keycloak | `admin` | `admin-local-only` |
 | MinIO | `openiotdata` | `openiotdata-minio-local-only` |
 | PostgreSQL | `openiotdata` | `openiotdata-local-only` |
@@ -192,7 +199,11 @@ POST /api/v1/datasets/{dataset_id}/records:batch
 
 Cada observación exige `observed_at` y un objeto libre `data`; `sensor_id`, `location` GeoJSON y `metadata` son opcionales. Cada solicitud requiere `Idempotency-Key`, acepta como máximo 10.000 registros o 10 MiB y devuelve `202 Accepted`. Repetir la misma clave para el mismo dataset devuelve el trabajo existente sin duplicar datos.
 
-La creación de nuevas versiones, tokens de ingesta, archivo de datasets, reportes y resolución de moderación siguen disponibles exclusivamente mediante la API; no forman parte de la interfaz beta.
+La interfaz de gestión permite crear nuevas versiones, cargar recursos y publicar
+snapshots, emitir/listar/revocar tokens de ingesta y archivar datasets propios. El
+secreto de un token se muestra sólo al crearlo. Las cuentas con rol `moderator` o
+`admin` pueden revisar y resolver reportes en `/admin`; los reportes comunitarios se
+crean mediante la API.
 
 ## Desarrollo sin Docker para la aplicación
 
@@ -202,7 +213,7 @@ Backend:
 
 ```bash
 python3.12 -m venv backend/.venv
-backend/.venv/bin/pip install -r backend/requirements-dev.txt
+backend/.venv/bin/pip install -r backend/requirements-dev.lock
 cd backend
 .venv/bin/alembic upgrade head
 .venv/bin/uvicorn app.main:app --reload --port 8000
@@ -234,15 +245,22 @@ Para el proxy de mismo origen, use la pila Compose. El frontend compilado recibe
 make lint
 make test
 make verify
-make e2e-ui
+make setup-e2e
+make validate-beta
 docker compose config --quiet
 bash -n scripts/*.sh
 ```
 
-`make e2e-ui` necesita la pila levantada con `make bootstrap` y los navegadores de Playwright instalados:
+`make test` ejecuta 27 pruebas backend y 16 frontend. Cada caso backend expira a los
+60 segundos y produce un volcado de stacks a los 45 segundos. `make validate-beta`
+es la puerta manual canónica: ejecuta calidad, arranque, repetición idempotente del
+seed, salud, E2E API, E2E de navegador en escritorio/móvil y salud final. La evidencia se registra en
+[`docs/VALIDATION.md`](docs/VALIDATION.md).
+
+`make e2e-ui` necesita la pila levantada con `make bootstrap` y Chromium de Playwright instalado:
 
 ```bash
-cd frontend && npx playwright install chromium
+make setup-e2e
 ```
 
 La pila local reserva aproximadamente 10–12 GB de RAM, principalmente por ClamAV.
@@ -310,7 +328,7 @@ backend/                 FastAPI, modelos, workers y migraciones
 frontend/                Next.js y experiencia del catálogo
 infra/                   Nginx, realm Keycloak e inicialización PostGIS
 scripts/                 bootstrap, seed, checks y backups
-docs/                    API, ingesta, diagramas, políticas y decisiones
+docs/                    API, ingesta, handoff, roadmap, validación, políticas y ADR
 docker-compose.yml       pila local completa
 ```
 
