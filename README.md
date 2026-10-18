@@ -396,3 +396,87 @@ docker-compose.yml       pila local completa
 ## Contribuir y licencias
 
 Consulte [CONTRIBUTING.md](CONTRIBUTING.md) y [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). El código se distribuye bajo [Apache License 2.0](LICENSE). Esa licencia no se aplica automáticamente a los datasets: cada publicador debe escoger y declarar una licencia de datos compatible con sus derechos.
+
+## Guía paso a paso: modo host sin Docker
+
+Instrucciones para ejecutar el modo host en un equipo desde cero, sin Docker. Los
+valores de configuración se describen en [Modo host sin Docker](#modo-host-sin-docker-backend-y-frontend).
+
+### Requisitos
+
+- Python 3.12 o superior.
+- Node.js 22.
+- `git`.
+- En Windows no hacen falta `make`, `bash` ni WSL: el lanzador se ejecuta con `node`.
+
+### 1. Clonar el repositorio
+
+```bash
+git clone <url-del-repo> OpenIoTData
+cd OpenIoTData
+git checkout local
+```
+
+### 2. Arrancar todo con un solo comando
+
+```bash
+node scripts/dev.mjs
+```
+
+El lanzador crea `backend/.venv` e instala las dependencias cuando faltan, ejecuta
+`npm ci` si no hay `node_modules`, carga el catálogo ilustrativo y arranca la API y el
+frontend en la misma terminal.
+
+### 3. Abrir en el navegador
+
+| Servicio | URL |
+|---|---|
+| Aplicación | http://localhost:3000 |
+| API / Swagger | http://localhost:8000/api/v1/docs |
+
+No hace falta iniciar sesión: el modo host activa la autenticación de desarrollo, así que
+la sesión entra como `local-developer` con roles `publisher` y `moderator`, y permite
+usar `/publish`, `/my-datasets` y `/admin`.
+
+Acceda por `http://localhost:3000` y no por `127.0.0.1`: el backend permite CORS sólo
+para ese origen.
+
+### 4. Comprobar que responde
+
+```bash
+curl http://localhost:8000/health
+curl 'http://localhost:8000/api/v1/datasets'
+```
+
+El segundo comando debe devolver el dataset ilustrativo
+`ruido-ambiental-bogota-demostracion`.
+
+### 5. Detener, reiniciar y depurar
+
+- Detener ambos servicios: `Ctrl+C` en la terminal del lanzador.
+- Eliminar la base y los objetos locales: `node scripts/dev.mjs --reset`.
+- Ver la configuración resuelta: `node scripts/dev.mjs --env`.
+- Arrancar sólo una parte: `node scripts/dev.mjs --api-only` o `--web-only`.
+
+### Alternativa manual en Linux y macOS
+
+Si prefiere dos terminales y `make`:
+
+```bash
+python3.12 -m venv backend/.venv
+backend/.venv/bin/pip install -r backend/requirements.lock
+cd frontend && npm ci && cd ..
+make dev-seed && make dev-api
+```
+
+En otra terminal:
+
+```bash
+make dev-web
+```
+
+### Limitaciones
+
+El modo host omite ClamAV, Keycloak/OIDC, PostGIS y el worker Celery: la identidad se
+simula con la cabecera `X-Dev-User`, las consultas por `bbox` usan la envolvente
+almacenada y la subida usa multipart. No sustituye a `make validate-beta`.
