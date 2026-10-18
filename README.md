@@ -71,6 +71,12 @@ make verify   # lint, tipos, pruebas, build y configuración
 make logs     # seguir logs
 make down     # detener sin borrar volúmenes
 make backup   # exportar PostgreSQL y objetos
+
+make dev-run   # preparar y arrancar todo el modo host con un comando
+make dev-seed  # cargar datos en la base del modo host (sin Docker)
+make dev-api   # arrancar la API en el host (sin Docker)
+make dev-web   # arrancar el frontend en el host (sin Docker)
+make dev       # mostrar la configuración y la guía del modo host
 ```
 
 No use `docker compose down -v` salvo que quiera eliminar de forma irreversible la base de datos, los objetos y las firmas locales.
@@ -238,6 +244,61 @@ NEXT_PUBLIC_DEMO_MODE=true docker compose build frontend
 La pantalla de inicio de sesión de Keycloak permite crear una cuenta local mediante “Crear cuenta”. Las cuentas locales pueden publicar datasets y el catálogo sigue siendo anónimo para lectura.
 
 Para el proxy de mismo origen, use la pila Compose. El frontend compilado recibe `NEXT_PUBLIC_API_URL=/api/v1`; Nginx conserva la URI al enviarla a FastAPI, por lo que nunca se duplica `/api/v1`.
+
+## Modo host sin Docker (backend y frontend)
+
+Para trabajar únicamente en la API y la interfaz, sin levantar la infraestructura, el
+repositorio incluye un modo host con base SQLite, almacenamiento local y procesamiento
+en línea. Sirve para desarrollar y depurar; no sustituye a `make validate-beta`.
+
+Con un solo comando (Windows, macOS y Linux):
+
+```bash
+node scripts/dev.mjs
+```
+
+El lanzador crea `backend/.venv` e instala las dependencias cuando faltan, ejecuta
+`npm ci` si no hay `node_modules`, carga el catálogo ilustrativo y arranca la API y el
+frontend en la misma terminal. Pulse Ctrl+C para detener ambos.
+
+- API: http://localhost:8000 (Swagger en `/api/v1/docs`)
+- UI: http://localhost:3000
+
+Opciones: `--api-only`, `--web-only`, `--no-seed`, `--reset`, `--env` y `--help`.
+
+Requisitos: Python 3.12 o superior y Node.js 22. No se necesita Docker, `make` ni bash;
+en Windows el lanzador funciona directamente con `node`.
+
+Pasos manuales en Linux o macOS:
+
+```bash
+python3.12 -m venv backend/.venv
+backend/.venv/bin/pip install -r backend/requirements.lock
+cd frontend && npm ci && cd ..
+make dev-seed   # carga el catálogo ilustrativo en la base local
+make dev-api    # FastAPI en http://localhost:8000
+```
+
+En otra terminal:
+
+```bash
+make dev-web    # Next.js en http://localhost:3000
+```
+
+`make dev` muestra la configuración resuelta y `make dev-run` es el equivalente Unix del
+lanzador. Para eliminar la base local y los objetos del modo host use `make dev-reset`
+o `node scripts/dev.mjs --reset`.
+
+Los valores están en `scripts/dev-local.env` (SQLite en `backend/data/`, almacenamiento
+local, `DEV_AUTH_BYPASS=true`). Acceda por `http://localhost:3000`; el modo demo del
+frontend permanece desactivado.
+
+El modo host omite deliberadamente ClamAV, Keycloak/OIDC, PostGIS y el worker Celery:
+la identidad se simula con la cabecera `X-Dev-User` (roles `publisher` y `moderator`),
+las consultas por `bbox` usan la envolvente almacenada en lugar de `ST_Intersects`, la
+subida usa multipart (sin `presign`) y `DEV_AUTH_BYPASS` sigue prohibido fuera de
+`development` y `test`. Para autenticación real, almacenamiento S3, antivirus, PostGIS
+y validación integral, use la pila Compose.
 
 ## Pruebas locales
 

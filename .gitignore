@@ -31,6 +31,8 @@ backups/
 *.parquet
 *.duckdb
 *.duckdb.wal
+*.db
+*.sqlite3
 
 # Editors and OS
 .idea/

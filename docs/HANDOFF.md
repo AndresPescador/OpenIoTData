@@ -88,6 +88,19 @@ Pytest imprime stacks a los 45 segundos. En algunos sandboxes que no permiten hi
 `aiosqlite` puede bloquearse antes del primer test: confirme fuera de ese aislamiento
 antes de atribuir el fallo a la aplicación.
 
+## Modo host sin Docker
+
+El modo host permite trabajar sólo en la API y el frontend. El lanzador multiplataforma
+`node scripts/dev.mjs` (o `make dev-run`) prepara el entorno, carga los datos
+ilustrativos y arranca ambos servicios en una sola terminal; funciona en Windows, macOS
+y Linux. En Linux y macOS siguen disponibles `scripts/dev-local.sh` y los objetivos
+`make dev-seed`, `make dev-api`, `make dev-web`, `make dev-reset` y `make dev`.
+
+Usa SQLite en `backend/data/`, almacenamiento local, procesamiento en línea y
+`DEV_AUTH_BYPASS`; los valores están en `scripts/dev-local.env`. Omite ClamAV,
+Keycloak, PostGIS y Celery, por lo que no sustituye a `make validate-beta` ni representa
+la configuración de Compose.
+
 ## Datos demo y límites de seguridad
 
 `make seed` es idempotente y sólo carga contenido sintético señalado como

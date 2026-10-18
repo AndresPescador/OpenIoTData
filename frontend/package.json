@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:demo": "NEXT_PUBLIC_DEMO_MODE=true NEXT_PUBLIC_API_URL= next dev",
+    "dev:local": "node ../scripts/dev.mjs --web-only",
     "build": "next build --webpack && node scripts/inject-direction-contract.mjs",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",

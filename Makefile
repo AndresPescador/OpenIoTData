@@ -4,7 +4,7 @@ BACKEND_PYTHON ?= $(shell if test -x "$(CURDIR)/backend/.venv312/bin/python"; th
 
 .DEFAULT_GOAL := help
 
-.PHONY: help bootstrap config up wait seed check setup-e2e e2e e2e-ui validate-beta verify ps logs down restart migrate test lint build backup
+.PHONY: help bootstrap config up wait seed check setup-e2e e2e e2e-ui validate-beta verify ps logs down restart migrate test lint build backup dev dev-run dev-api dev-seed dev-web dev-reset
 
 help: ## Muestra los comandos disponibles
 	@awk 'BEGIN {FS = ":.*## "; printf "OpenIoTData — comandos locales\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -75,3 +75,21 @@ build: ## Construye las imágenes de la aplicación
 
 backup: ## Crea respaldo local de PostgreSQL y MinIO en backups/
 	./scripts/backup.sh
+
+dev: ## Muestra la configuración y la guía del modo host sin Docker
+	./scripts/dev-local.sh env
+
+dev-run: ## Prepara el entorno y arranca backend y frontend con un solo comando
+	node scripts/dev.mjs
+
+dev-api: ## Arranca FastAPI en el host (sin Docker)
+	./scripts/dev-local.sh api
+
+dev-seed: ## Carga el catálogo ilustrativo en la base local del modo host
+	./scripts/dev-local.sh seed
+
+dev-web: ## Arranca Next.js en el host contra la API local
+	./scripts/dev-local.sh web
+
+dev-reset: ## Elimina los datos locales del modo host (destructivo)
+	./scripts/dev-local.sh reset
