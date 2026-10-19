@@ -54,7 +54,8 @@ tzdata==2026.3
 tzlocal==5.4.4
 urllib3==2.7.0
 uvicorn==0.52.4
-uvloop==0.22.1
+# uvloop no existe para Windows; uvicorn[standard] lo aporta sólo en Unix.
+uvloop==0.22.1 ; sys_platform != "win32"
 vine==5.1.0
 watchfiles==1.2.0
 wcwidth==0.8.2
